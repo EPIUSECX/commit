@@ -22,6 +22,8 @@ export interface CommitProjectBranch{
 	app_name?: string
 	/**	Last fetched : Datetime	*/
 	last_fetched?: string
+	scan_status?: "Queued" | "Running" | "Completed" | "Failed"
+	latest_scan_snapshot?: string
 	/**	Frequency : Select	*/
 	frequency?: "" | "Daily" | "Weekly" | "Monthly"
 	/**	Modules : Long Text	*/

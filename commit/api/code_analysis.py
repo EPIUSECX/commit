@@ -11,7 +11,7 @@ from commit.utils.conversions import convert_module_name
 access_token = "*"
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_name_of_app(organization, repo):
     """
     Get name of app from repo
@@ -83,7 +83,7 @@ def get_app_name_from_pyproject_toml(organization, repo):
 # def get_list_of_dependencies
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_list_of_modules(organization, repo, app_name):
     """
     Get list of modules for a Frappe app
@@ -94,7 +94,7 @@ def get_list_of_modules(organization, repo, app_name):
     return modules.split("\n")
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_list_of_doctypes_in_module(organization, repo, app_name, module: str):
     """
     Get list of doctypes in a module
@@ -118,7 +118,7 @@ def get_list_of_doctypes_in_module(organization, repo, app_name, module: str):
     return {"module": module, "doctypes": doctypes, "count": len(doctypes)}
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_customized_doctypes_in_module(organization, repo, app_name, module: str):
     """
     Get list of all customized doctypes for a Frappe app
@@ -141,7 +141,7 @@ def get_customized_doctypes_in_module(organization, repo, app_name, module: str)
     return {"module": module, "doctypes": doctypes, "count": len(doctypes)}
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_all_whitelisted_api_in_app(organization, repo):
     """
     Get list of all whitelisted API in a Frappe app with:
@@ -151,7 +151,7 @@ def get_all_whitelisted_api_in_app(organization, repo):
     4. Arguments
     5. Python code snippet
     """
-    query = f"@frappe.whitelist in:file+language:python"
+    query = "@frappe.whitelist in:file+language:python"
     search_results = search_for_file_in_repo(access_token, organization, repo, query)
 
     if search_results.get("total_count", 0) == 0:

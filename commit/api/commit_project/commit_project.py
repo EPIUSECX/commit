@@ -1,13 +1,16 @@
 import frappe
 
+from commit.security import require_any_role
 
-@frappe.whitelist(allow_guest=True)
+
+@frappe.whitelist()
 def get_project_list_with_branches():
     """
     Get list of projects with branches for each organization
     """
 
-    organizations = frappe.get_all(
+    require_any_role("Commit Project Member", "System Manager")
+    organizations = frappe.get_list(
         "Commit Organization",
         fields=[
             "name",
@@ -19,7 +22,7 @@ def get_project_list_with_branches():
         ],
     )
     for organization in organizations:
-        projects = frappe.get_all(
+        projects = frappe.get_list(
             "Commit Project",
             filters={"org": organization.get("name")},
             fields=[
@@ -29,14 +32,13 @@ def get_project_list_with_branches():
                 "app_name",
                 "image",
                 "banner_image",
-                "path_to_folder",
                 "description",
             ],
             order_by="creation desc",
         )
         # organization["projects"] = projects
         for project in projects:
-            branches = frappe.get_all(
+            branches = frappe.get_list(
                 "Commit Project Branch",
                 filters={"project": project.get("name")},
                 fields=[

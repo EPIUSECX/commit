@@ -386,12 +386,16 @@ def get_first_page_route(route: str):
     """
     if frappe.db.exists("Commit Docs", {"route": route}):
         commit_docs = frappe.get_doc("Commit Docs", {"route": route})
+        if frappe.session.user == "Guest" and not commit_docs.published:
+            frappe.throw("Docs Not Published", frappe.PermissionError)
         found = False
         for sidebar in commit_docs.sidebar:
             commit_docs_page = frappe.get_cached_doc(
                 "Commit Docs Page", sidebar.docs_page
             )
-            if commit_docs_page.published:
+            if commit_docs_page.published and (
+                frappe.session.user != "Guest" or commit_docs_page.allow_guest
+            ):
                 found = True
                 return commit_docs_page.route
 

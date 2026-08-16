@@ -10,25 +10,61 @@ class OpenAISettings(Document):
     pass
 
 
+DOCUMENTATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "apis": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "function_name": {"type": "string"},
+                    "path": {"type": "string"},
+                    "last_updated": {"type": "string"},
+                    "documentation": {"type": "string"},
+                },
+                "required": [
+                    "function_name",
+                    "path",
+                    "last_updated",
+                    "documentation",
+                ],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["apis"],
+    "additionalProperties": False,
+}
+
+
 def open_ai_call(message):
     # 1. Get the organization ID and API key from Open API Settings
     open_ai = frappe.get_single("Open AI Settings")
     org_id = open_ai.organization
     api_key = open_ai.get_password("api_key")
+    model = open_ai.model
 
-    if not org_id or not api_key:
-        frappe.throw("Please set the organization ID and API key in Open API Settings")
+    if not api_key or not model:
+        frappe.throw("Please configure the API key and model in Open AI Settings")
 
     # 2. Initialize the Open AI client
-    client = OpenAI(organization=org_id, api_key=api_key)
+    client = OpenAI(organization=org_id or None, api_key=api_key, timeout=60.0)
 
     # 2. Make the API call to Open AI
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=message,
-        max_tokens=3900,
-        temperature=0.3,  # Lower temperature for more deterministic output
-        stop=["Function Name:", "\n\n"],  # Stop sequence to separate functions
+    response = client.responses.create(
+        model=model,
+        input=message,
+        max_output_tokens=open_ai.max_output_tokens or 4000,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "api_documentation",
+                "strict": True,
+                "schema": DOCUMENTATION_SCHEMA,
+            }
+        },
+        store=False,
     )
 
-    return response.choices[0].message.content
+    return response.output_text

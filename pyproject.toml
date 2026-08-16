@@ -8,7 +8,20 @@ requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
- "GitPython",
- "openai",
- "pyppeteer",
+ "beautifulsoup4>=4.12,<5",
+ "GitPython>=3.1,<4",
+ "openai>=1.0,<3",
+ "Pillow>=10,<13",
+ "pyppeteer>=2,<3",
+ "requests>=2.31,<3",
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "commit.__version__"}
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["F", "I", "UP"]

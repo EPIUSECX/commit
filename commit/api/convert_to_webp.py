@@ -1,4 +1,4 @@
-import os
+import io
 from urllib.parse import unquote
 
 import frappe
@@ -7,6 +7,8 @@ from frappe.core.doctype.file.file import get_local_image
 from frappe.core.doctype.file.utils import delete_file
 from frappe.model.document import Document
 from PIL import Image
+
+from commit.security import get_allowed_image_hosts, validate_public_https_url
 
 
 @frappe.whitelist()
@@ -52,12 +54,36 @@ def convert_to_webp(
 
     def handle_image_from_url(image_url):
         image_url = unquote(image_url)
-        response = requests.get(image_url)
-        image = Image.open(io.BytesIO(response.content))
+        allowed_hosts = get_allowed_image_hosts()
+        if not allowed_hosts:
+            frappe.throw(
+                "Remote image conversion is disabled. Configure commit_allowed_image_hosts."
+            )
+        validate_public_https_url(image_url, allowed_hosts)
+        response = requests.get(
+            image_url,
+            timeout=(5, 20),
+            allow_redirects=False,
+            stream=True,
+            headers={"Accept": "image/png,image/jpeg"},
+        )
+        response.raise_for_status()
+        if response.headers.get("Content-Type", "").split(";", 1)[0] not in {
+            "image/png",
+            "image/jpeg",
+        }:
+            frappe.throw("Remote URL did not return a supported image")
+        maximum_size = 10 * 1024 * 1024
+        content = response.raw.read(maximum_size + 1)
+        if len(content) > maximum_size:
+            frappe.throw("Remote image is too large")
+        image = Image.open(io.BytesIO(content))
+        image.verify()
+        image = Image.open(io.BytesIO(content))
         filename = image_url.split("/")[-1]
         extn = get_extension(filename)
         if can_convert_image(extn):
-            _file = frappe.get_cached_doc(
+            _file = frappe.get_doc(
                 {
                     "doctype": "File",
                     "file_name": f"{filename.replace(extn, 'webp')}",

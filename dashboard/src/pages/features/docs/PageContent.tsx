@@ -20,7 +20,7 @@ export type TocItem = {
 
 export interface TocObj {
     [key: string]: TocItem;
-};
+}
 
 const PageContent = ({ pageID, ID }: { pageID: string, ID: string }) => {
 

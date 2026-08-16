@@ -164,7 +164,8 @@ export interface ImagePreviewProps extends React.HTMLAttributes<HTMLDivElement> 
 
 export const ImagePreview = ({ file, size, borderRadius = "50%", ...props }: ImagePreviewProps) => {
 
-    const previewURL = file.fileType === 'file' ? useGetFilePreviewUrl(file) : ''
+    const generatedPreviewURL = useGetFilePreviewUrl(file)
+    const previewURL = file.fileType === 'file' ? generatedPreviewURL : ''
 
     return (
         <img src={previewURL} alt={file.fileType === 'file' ? file.name : 'Image'} className={`object-cover rounded-md h-${size} w-${size} border-r-${borderRadius} ${props.className} rounded-2xl`} />

@@ -1,18 +1,20 @@
+import { lazy, Suspense } from 'react'
 import { FrappeProvider } from 'frappe-react-sdk'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import PageNotFound from './components/common/PageNotFound/PageNotFound'
-import APIViewerContainer from './pages/features/api_viewer/APIViewer'
-import AppAPIViewerContainer from './pages/features/api_viewer/AppAPIViewer'
-import ViewDocs from './pages/features/docs/ViewDocs'
-import ERDViewer from './pages/features/erd/ERDViewer'
-import CreateERD from './pages/features/erd/meta/CreateERDForMeta'
 import Overview from './pages/overview/Overview'
-import { DocsMainPage } from './components/features/documentation/DocsMainPage'
-import { PageTable } from './pages/features/docs/DocsEditor/PageTable'
-import { Sidebar } from './pages/features/docs/Sidebar/DashboardSidebar'
-import { DocsSettings } from './pages/features/docs/Settings/DocsSettings'
-import { DashboardNavbar } from './pages/features/docs/Navbar/DashboardNavbar'
-import { DashboardFooter } from './pages/features/docs/Footer/DashboardFooter'
+
+const APIViewerContainer = lazy(() => import('./pages/features/api_viewer/APIViewer'))
+const AppAPIViewerContainer = lazy(() => import('./pages/features/api_viewer/AppAPIViewer'))
+const ViewDocs = lazy(() => import('./pages/features/docs/ViewDocs'))
+const ERDViewer = lazy(() => import('./pages/features/erd/ERDViewer'))
+const CreateERD = lazy(() => import('./pages/features/erd/meta/CreateERDForMeta'))
+const DocsMainPage = lazy(() => import('./components/features/documentation/DocsMainPage').then(module => ({ default: module.DocsMainPage })))
+const PageTable = lazy(() => import('./pages/features/docs/DocsEditor/PageTable').then(module => ({ default: module.PageTable })))
+const Sidebar = lazy(() => import('./pages/features/docs/Sidebar/DashboardSidebar').then(module => ({ default: module.Sidebar })))
+const DocsSettings = lazy(() => import('./pages/features/docs/Settings/DocsSettings').then(module => ({ default: module.DocsSettings })))
+const DashboardNavbar = lazy(() => import('./pages/features/docs/Navbar/DashboardNavbar').then(module => ({ default: module.DashboardNavbar })))
+const DashboardFooter = lazy(() => import('./pages/features/docs/Footer/DashboardFooter').then(module => ({ default: module.DashboardFooter })))
 
 
 function App() {
@@ -31,6 +33,7 @@ function App() {
     <FrappeProvider socketPort={import.meta.env.VITE_SOCKET_PORT ?? undefined} siteName={getSiteName()}>
       <BrowserRouter basename={import.meta.env.VITE_BASE_PATH}>
         {/* <UserProvider> */}
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading…</div>}>
         <Routes>
           {/** Public Routes */}
           {/* <Route path="/sign-up" element={<SignUp />} /> */}
@@ -60,6 +63,7 @@ function App() {
           </Route>
           <Route path='*' element={<PageNotFound />} />
         </Routes>
+        </Suspense>
         {/* </UserProvider> */}
       </BrowserRouter>
     </FrappeProvider>

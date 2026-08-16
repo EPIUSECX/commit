@@ -1,7 +1,7 @@
 import frappe
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def generate_bruno_file(data, return_type="download"):
     request_data = frappe.parse_json(data)
     """
@@ -63,7 +63,7 @@ def generate_bruno_file(data, return_type="download"):
 
     # Params section
     if params:
-        bru_content.append(f"params:query {{\n")
+        bru_content.append("params:query {\n")
         for k, v in params.items():
             if v:
                 bru_content.append(f"  {k}: {v}\n")

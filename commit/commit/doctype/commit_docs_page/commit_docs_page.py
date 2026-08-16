@@ -67,7 +67,7 @@ def publish_documentation(
     """
 
     # 1. Create a new Commit Docs Page Document
-    commit_docs_page = frappe.get_cached_doc(
+    commit_docs_page = frappe.get_doc(
         {
             "doctype": "Commit Docs Page",
             "title": title,
@@ -164,8 +164,14 @@ def get_commit_docs_page(name):
 
     doc = frappe.get_cached_doc("Commit Docs Page", name)
 
-    if user == "Guest" and not doc.allow_guest and not doc.published:
-        frappe.throw("You are not allowed to view this page")
+    if user == "Guest":
+        if not doc.published or not doc.allow_guest or not doc.commit_docs:
+            frappe.throw("You are not allowed to view this page", frappe.PermissionError)
+        parent = frappe.get_cached_doc("Commit Docs", doc.commit_docs)
+        if not parent.published:
+            frappe.throw("You are not allowed to view this page", frappe.PermissionError)
+    else:
+        doc.check_permission("read")
 
     def process_codeblocks(md):
         # 1. Remove code fences for ```JSX blocks (render as HTML)
@@ -208,7 +214,6 @@ def get_commit_docs_page(name):
 def calculate_toc_object(html):
     import re
 
-    from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "html.parser")
     headings = soup.find_all(["h2", "h3", "h4", "h5", "h6"])
@@ -281,7 +286,7 @@ def create_commit_docs_page(data):
         data = json.loads(data)
 
     # create a new Commit Docs Page
-    commit_docs_page = frappe.get_cached_doc(
+    commit_docs_page = frappe.get_doc(
         {
             "doctype": "Commit Docs Page",
             "title": data.get("title"),

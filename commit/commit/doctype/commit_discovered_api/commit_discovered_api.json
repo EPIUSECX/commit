@@ -1,0 +1,29 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["snapshot", "api_path", "function_name", "file_path", "request_methods", "allow_guest", "xss_safe", "block_start", "block_end", "definition"],
+ "fields": [
+  {"fieldname": "snapshot", "fieldtype": "Link", "label": "Snapshot", "options": "Commit Scan Snapshot", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "api_path", "fieldtype": "Data", "label": "API Path", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "function_name", "fieldtype": "Data", "label": "Function Name", "reqd": 1},
+  {"fieldname": "file_path", "fieldtype": "Data", "label": "Repository-relative File Path", "reqd": 1},
+  {"fieldname": "request_methods", "fieldtype": "JSON", "label": "Request Methods"},
+  {"default": "0", "fieldname": "allow_guest", "fieldtype": "Check", "label": "Allows Guest"},
+  {"default": "0", "fieldname": "xss_safe", "fieldtype": "Check", "label": "XSS Safe"},
+  {"fieldname": "block_start", "fieldtype": "Int", "label": "Block Start"},
+  {"fieldname": "block_end", "fieldtype": "Int", "label": "Block End"},
+  {"fieldname": "definition", "fieldtype": "JSON", "label": "Parsed Definition"}
+ ],
+ "index_web_pages_for_search": 0,
+ "module": "commit",
+ "name": "Commit Discovered API",
+ "permissions": [
+  {"create": 1, "delete": 1, "read": 1, "report": 1, "role": "System Manager", "write": 1},
+  {"read": 1, "report": 1, "role": "Commit Project Member"}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

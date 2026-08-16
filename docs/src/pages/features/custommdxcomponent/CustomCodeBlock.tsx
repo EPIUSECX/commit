@@ -3,7 +3,7 @@ import { Check, Copy } from "lucide-react";
 import { useRef, useState } from "react";
 
 // Custom Code Block Component
-const CustomCodeBlock = ({ children, ...props }: { children: React.ReactNode, props?: any }) => {
+const CustomCodeBlock = ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => {
     const [isCopied, setIsCopied] = useState(false);
     const preRef = useRef<HTMLPreElement>(null);
 

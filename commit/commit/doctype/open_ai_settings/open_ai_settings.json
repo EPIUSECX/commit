@@ -7,6 +7,8 @@
  "field_order": [
   "organization",
   "api_key",
+  "model",
+  "max_output_tokens",
   "project"
  ],
  "fields": [
@@ -23,6 +25,19 @@
    "in_list_view": 1,
    "label": "API Key",
    "reqd": 1
+  },
+  {
+   "description": "OpenAI model identifier enabled for this project",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "reqd": 1
+  },
+  {
+   "default": "4000",
+   "fieldname": "max_output_tokens",
+   "fieldtype": "Int",
+   "label": "Maximum Output Tokens"
   },
   {
    "fieldname": "project",

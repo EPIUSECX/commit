@@ -71,7 +71,7 @@ export const FileDrop = ({ files, onFileChange, maxFiles = 1, uploading, accept,
     })
 
     const removeFile = (file: CustomFile) => {
-        let newFiles = files.filter(f => f.fileID !== file.fileID)
+        const newFiles = files.filter(f => f.fileID !== file.fileID)
         onFileChange(newFiles)
     }
 
@@ -116,7 +116,7 @@ interface FileListItemProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const FileListItem = ({ file, removeFile, isUploading, ...props }: FileListItemProps) => {
 
-    const previewURL = file.fileType === 'file' && useGetFilePreviewUrl(file)
+    const previewURL = useGetFilePreviewUrl(file)
     const fileSizeString = getFileSize(file)
 
     return (

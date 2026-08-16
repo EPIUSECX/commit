@@ -15,6 +15,8 @@ def search_link(
     reference_doctype=None,
     ignore_user_permissions=False,
 ):
+    if ignore_user_permissions and "System Manager" not in frappe.get_roles():
+        ignore_user_permissions = False
     results = search_widget(
         doctype,
         txt.strip(),

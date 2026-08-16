@@ -1,15 +1,32 @@
-import frappe
 import requests
+
+GITHUB_API_URL = "https://api.github.com"
+REQUEST_TIMEOUT = (5, 30)
 
 
 def prepare_headers(
     access_token=None, type="bearer", accept="application/vnd.github+json"
 ):
-    return {
-        # "Authorization": type + " " + access_token,
+    headers = {
         "Accept": accept,
         "X-GitHub-Api-Version": "2022-11-28",
     }
+    if access_token and access_token != "*":
+        headers["Authorization"] = f"{type} {access_token}"
+    return headers
+
+
+def github_get(path: str, *, headers: dict, params: dict | None = None):
+    response = requests.get(
+        f"{GITHUB_API_URL}{path}",
+        headers=headers,
+        params=params,
+        timeout=REQUEST_TIMEOUT,
+    )
+    if response.status_code == 404:
+        return response
+    response.raise_for_status()
+    return response
 
 
 def get_user(access_token=None):
@@ -17,7 +34,7 @@ def get_user(access_token=None):
     Get user details from github
     """
     headers = prepare_headers(access_token)
-    response = requests.get("https://api.github.com/user", headers=headers)
+    response = github_get("/user", headers=headers)
     return response.json()
 
 
@@ -26,7 +43,7 @@ def get_user_organizations(access_token=None):
     Get user organizations from github
     """
     headers = prepare_headers(access_token)
-    response = requests.get("https://api.github.com/user/orgs", headers=headers)
+    response = github_get("/user/orgs", headers=headers)
     return response.json()
 
 
@@ -35,9 +52,7 @@ def get_organization_repos(access_token, organization):
     Get repositories in an organization from Github
     """
     headers = prepare_headers(access_token)
-    response = requests.get(
-        f"https://api.github.com/orgs/{organization}/repos", headers=headers
-    )
+    response = github_get(f"/orgs/{organization}/repos", headers=headers)
     return response.json()
 
 
@@ -46,9 +61,8 @@ def get_file_in_repo(access_token: str, organization: str, repo: str, path: str)
     Get file in a repository from Github
     """
     headers = prepare_headers(access_token, accept="application/vnd.github.raw")
-    response = requests.get(
-        f"https://api.github.com/repos/{organization}/{repo}/contents/{path}",
-        headers=headers,
+    response = github_get(
+        f"/repos/{organization}/{repo}/contents/{path}", headers=headers
     )
     return response.text
 
@@ -62,9 +76,8 @@ def get_all_files_in_repo(
 
     # TODO: For every file, we need to store it in the database with the commit hash so that we do not need to call this API again to fetch the same result
     headers = prepare_headers(access_token)
-    response = requests.get(
-        f"https://api.github.com/repos/{organization}/{repo}/contents/{path}",
-        headers=headers,
+    response = github_get(
+        f"/repos/{organization}/{repo}/contents/{path}", headers=headers
     )
     return response.json()
 
@@ -91,12 +104,13 @@ def search_for_file_in_repo(
 
     # TODO: This API is expensive to use. We need to store the result based on commit hash and return from our own database
     headers = prepare_headers(access_token, accept=accept)
-    if query:
-        query = f"{query}+repo:{organization}/{repo}"
+    qualifiers = [query] if query else []
     if extension:
-        query = f"{query}+extension:{extension}"
-    response = requests.get(
-        f"https://api.github.com/search/code?q={query}+repo:{organization}/{repo}&page={page}&per_page={per_page}",
+        qualifiers.append(f"extension:{extension}")
+    qualifiers.append(f"repo:{organization}/{repo}")
+    response = github_get(
+        "/search/code",
         headers=headers,
+        params={"q": " ".join(qualifiers), "page": page, "per_page": per_page},
     )
     return response.json()

@@ -93,7 +93,8 @@ def generate_docs_for_chunk(api_chunk):
             return cleaned_response
         # If cleaned_response is a string, attempt to decode it as JSON
         elif isinstance(cleaned_response, str):
-            return json.loads(cleaned_response, strict=False)
+            parsed = json.loads(cleaned_response, strict=False)
+            return parsed.get("apis", []) if isinstance(parsed, dict) else parsed
         else:
             # Handle other unexpected types if necessary
             print("Unexpected type of cleaned_response:", type(cleaned_response))
@@ -104,7 +105,8 @@ def generate_docs_for_chunk(api_chunk):
         try:
             # Attempt to fix common issues like single quotes or trailing commas
             cleaned_response = cleaned_response.replace("'", '"')
-            return json.loads(cleaned_response, strict=False)
+            parsed = json.loads(cleaned_response, strict=False)
+            return parsed.get("apis", []) if isinstance(parsed, dict) else parsed
         except json.JSONDecodeError as e:
             print("Second JSON Decode Error:", e)
             return []
@@ -145,7 +147,9 @@ def generate_documentation_for_api_snippet(api_path: str, code_snippet: str):
             return cleaned_response
         # If cleaned_response is a string, attempt to decode it as JSON
         elif isinstance(cleaned_response, str):
-            return json.loads(cleaned_response, strict=False)
+            parsed = json.loads(cleaned_response, strict=False)
+            apis = parsed.get("apis", []) if isinstance(parsed, dict) else parsed
+            return apis[0] if apis else {}
         else:
             # Handle other unexpected types if necessary
             print("Unexpected type of cleaned_response:", type(cleaned_response))
@@ -156,7 +160,9 @@ def generate_documentation_for_api_snippet(api_path: str, code_snippet: str):
         try:
             # Attempt to fix common issues like single quotes or trailing commas
             cleaned_response = cleaned_response.replace("'", '"')
-            return json.loads(cleaned_response, strict=False)
+            parsed = json.loads(cleaned_response, strict=False)
+            apis = parsed.get("apis", []) if isinstance(parsed, dict) else parsed
+            return apis[0] if apis else {}
         except json.JSONDecodeError as e:
             print("Second JSON Decode Error:", e)
             return []
@@ -171,9 +177,10 @@ def get_documentation_for_api(
     endpoint: str,
     viewer_type: str = "app",
 ):
-    code_snippet = get_file_content_from_path(
+    code_response = get_file_content_from_path(
         project_branch, file_path, block_start, block_end, viewer_type
     )
+    code_snippet = "".join(code_response.get("file_content", []))
     api_path = endpoint
     return generate_documentation_for_api_snippet(api_path, code_snippet)
 

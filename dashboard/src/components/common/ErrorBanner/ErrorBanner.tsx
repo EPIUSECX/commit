@@ -78,7 +78,7 @@ export const ErrorBanner = ({ error, overrideHeading, ...props }: ErrorBannerPro
         if (Array.isArray(message)) {
             extractedMessage = message.map((m) => m).join('\n')
         }
-        return extractedMessage.replace(/<a href="[^"]*\/app\/[^\/]+\/([^\/]+)\/([^\/]+)">/g, (match, doctype, docname) => {
+        return extractedMessage.replace(/<a href="[^"]*\/app\/[^/]+\/([^/]+)\/([^/]+)">/g, (match, doctype, docname) => {
             const decodedDoctype = decodeURIComponent(doctype)
             const decodedDocname = decodeURIComponent(docname)
             const href = `/app/${decodedDoctype.toLowerCase().split(' ').join('-')}/${decodedDocname}`

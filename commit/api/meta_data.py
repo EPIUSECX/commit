@@ -1,6 +1,7 @@
 import frappe
 
 from commit.commit.code_analysis.apis import find_all_occurrences_of_whitelist
+from commit.security import require_any_role
 
 
 @frappe.whitelist()
@@ -53,13 +54,12 @@ def get_apis_for_app(app_name: str):
     """
     Gets the Project Branch document with the organization and app name
     """
+    require_any_role("System Manager")
     app_path = frappe.get_app_path(app_name)
 
     # remove last part of the path which is the app name
     app_path = app_path.rsplit("/", 1)[0]
     apis = find_all_occurrences_of_whitelist(app_path, app_name)
-
-    app_hooks = frappe.get_hooks(app_name=app_name)
 
     install_app_doc = frappe.get_cached_doc("Installed Applications")
     install_apps = install_app_doc.get("installed_applications")

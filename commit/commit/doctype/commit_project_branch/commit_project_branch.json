@@ -20,6 +20,8 @@
   "commit_hash",
   "app_name",
   "last_fetched",
+  "scan_status",
+  "latest_scan_snapshot",
   "frequency",
   "modules_and_doctypes_tab",
   "modules",
@@ -63,6 +65,20 @@
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "label": "Last fetched",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scan_status",
+   "fieldtype": "Select",
+   "label": "Scan Status",
+   "options": "Queued\nRunning\nCompleted\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "latest_scan_snapshot",
+   "fieldtype": "Link",
+   "label": "Latest Scan Snapshot",
+   "options": "Commit Scan Snapshot",
    "read_only": 1
   },
   {
@@ -147,15 +163,6 @@
    "role": "Commit Project Member",
    "share": 1,
    "write": 1
-  },
-  {
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Guest",
-   "share": 1
   }
  ],
  "sort_field": "modified",

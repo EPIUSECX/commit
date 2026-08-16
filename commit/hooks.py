@@ -1,11 +1,10 @@
-from . import __version__ as app_version
 
 app_name = "commit"
 app_title = "commit"
 app_publisher = "The Commit Company"
 app_description = "The Commit Company"
 app_email = "support@thecommit.company"
-app_license = "MIT"
+app_license = "AGPL-3.0-or-later"
 
 # Includes in <head>
 # ------------------
@@ -113,13 +112,13 @@ app_license = "MIT"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
+scheduler_events = {
 # 	"all": [
 # 		"commit.tasks.all"
 # 	],
-# 	"daily": [
-# 		"commit.tasks.daily"
-# 	],
+	"daily": [
+		"commit.tasks.refresh_scheduled_branches"
+	],
 # 	"hourly": [
 # 		"commit.tasks.hourly"
 # 	],
@@ -129,7 +128,7 @@ app_license = "MIT"
 # 	"monthly": [
 # 		"commit.tasks.monthly"
 # 	],
-# }
+}
 
 # Testing
 # -------

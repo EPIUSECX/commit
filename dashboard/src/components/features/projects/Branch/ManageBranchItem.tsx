@@ -19,6 +19,7 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
     const { updateDoc } = useFrappeUpdateDoc();
     const [open, setOpen] = useState(false);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
+    const scanInProgress = branch.scan_status === 'Queued' || branch.scan_status === 'Running';
 
     const methods = useForm<CommitProjectBranch>({
         defaultValues: {
@@ -57,7 +58,7 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
                 mutate();
                 callReset();
                 toast({
-                    description: "Branch Synced!",
+                    description: "Branch refresh queued. Results will appear when scanning completes.",
                     duration: 1500,
                 });
             });
@@ -91,7 +92,7 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
                             frequency={branch.frequency}
                         />
                         <ActionDropdown
-                            syncLoading={syncLoading}
+                            syncLoading={syncLoading || scanInProgress}
                             onSync={handleSync}
                             deleteLoading={deleteLoading}
                             onDelete={handleDelete}
@@ -99,7 +100,7 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
                     </div>
                 ) : (
                     <>
-                            <SyncButton loading={syncLoading} onSync={handleSync} />
+                            <SyncButton loading={syncLoading || scanInProgress} onSync={handleSync} />
                             <FrequencyPopover
                                 open={open}
                                 setOpen={setOpen}
@@ -120,6 +121,9 @@ const BranchInfo = ({ branch }: { branch: CommitProjectBranch }) => (
     <div className="flex flex-col items-start">
         <span className="text-md font-medium">{branch.branch_name}</span>
         <span className="text-xs text-gray-500">Last synced {convertFrappeTimestampToTimeAgo(branch.last_fetched)}</span>
+        {branch.scan_status && (
+            <span className="text-xs text-gray-500">Scan status: {branch.scan_status}</span>
+        )}
     </div>
 );
 

@@ -64,10 +64,8 @@ export const ErrorBanner = ({ error, overrideHeading, ...props }: ErrorBannerPro
         let eMessages: ParsedErrorMessage[] = error?._server_messages ? JSON.parse(error?._server_messages) : []
         eMessages = eMessages.map((m: any) => {
             try {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument
                 return JSON.parse(m)
             } catch (e) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-return
                 return m
             }
         })

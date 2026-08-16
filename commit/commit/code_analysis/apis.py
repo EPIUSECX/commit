@@ -23,7 +23,7 @@ def find_all_occurrences_of_whitelist(path: str, app_name: str):
     api_details = []
     # For each file, check if @frappe.whitelist is present
     for file in py_files:
-        file_content = open(file, "r").read()
+        file_content = open(file).read()
         # @frappe.whitelist can be mentioned multiple times in a file
         # So, we need to find all occurrences
         # We can use the count() method to find the number of occurrences

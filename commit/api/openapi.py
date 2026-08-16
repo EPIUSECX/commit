@@ -154,6 +154,7 @@ def _get_apis_from_project_branch(project_branch: str) -> list:
     Collect API definitions for a single Commit Project Branch (from stored whitelisted_apis).
     """
     branch_doc = frappe.get_cached_doc("Commit Project Branch", project_branch)
+    branch_doc.check_permission("read")
     apis = (
         json.loads(branch_doc.whitelisted_apis).get("apis", [])
         if branch_doc.whitelisted_apis
@@ -237,7 +238,7 @@ def _build_openapi_document(
     return doc
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_openapi_definition_installed_apps(app_name: str | None = None) -> dict:
     """
     Return an OpenAPI 3.0 definition for Installed Apps only.
@@ -247,6 +248,8 @@ def get_openapi_definition_installed_apps(app_name: str | None = None) -> dict:
 
     Use this for APIs discovered from apps in Installed Applications.
     """
+    if "System Manager" not in frappe.get_roles():
+        frappe.throw("System Manager role required", frappe.PermissionError)
     if not app_name:
         frappe.throw("App name is required.")
 
@@ -264,7 +267,7 @@ def get_openapi_definition_installed_apps(app_name: str | None = None) -> dict:
     )
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_openapi_definition_project_apps(project_branch: str | None = None) -> dict:
     """
     Return an OpenAPI 3.0 definition for Project Apps (Commit Project Branch) only.
@@ -281,6 +284,7 @@ def get_openapi_definition_project_apps(project_branch: str | None = None) -> di
         frappe.throw(f"Project branch {project_branch} does not exist.")
 
     project_branch_doc = frappe.get_cached_doc("Commit Project Branch", project_branch)
+    project_branch_doc.check_permission("read")
     apis = _get_apis_from_project_branch(project_branch)
     title = f"{project_branch_doc.app_name}'s OpenAPI Definition"
 

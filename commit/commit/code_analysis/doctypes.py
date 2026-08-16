@@ -18,7 +18,7 @@ def get_doctypes_in_module(path: str, app_name: str, module: str):
             # doctype .json files have the same name as the folder they are in
             doctype_file_path = os.path.join(doctype_folder_path, dir, dir + ".json")
             if os.path.isfile(doctype_file_path):
-                doctype_file = open(doctype_file_path, "r")
+                doctype_file = open(doctype_file_path)
                 doctype_json = json.loads(doctype_file.read())
                 # doctypes_list.append(doctype_json)
                 doctype_names.append(doctype_json.get("name"))
@@ -48,7 +48,7 @@ def get_doctype_json(path: str, app_name: str, module: str, doctype: str):
                 doctype_folder_path, parsed_doctype_name + ".json"
             )
             if os.path.isfile(doctype_file_path):
-                doctype_file = open(doctype_file_path, "r")
+                doctype_file = open(doctype_file_path)
                 doctype_json = json.loads(doctype_file.read())
                 return doctype_json
 

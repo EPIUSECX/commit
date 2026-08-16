@@ -2,44 +2,34 @@ import asyncio
 import io
 
 import frappe
-from frappe.utils.file_manager import save_file
 from pyppeteer import launch
 
 from commit.api.convert_to_webp import convert_to_webp
+from commit.security import validate_public_https_url
 
 
 async def capture_screenshot(url, width=1366, height=800, delay=3):
+    validate_public_https_url(url)
     browser = await launch(
         headless=True, handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False
     )
-    page = await browser.newPage()
-
-    await page.setViewport({"width": width, "height": height})
-    await page.goto(url, {"waitUntil": "load"})
-    await asyncio.sleep(delay)  # Ensure page loads fully
-
-    # ✅ Explicitly return bytes and ensure no file is saved
-    screenshot_bytes = await page.screenshot({"fullPage": False, "encoding": "binary"})
-
-    await browser.close()
-
-    return screenshot_bytes  # Return raw image data
+    try:
+        page = await browser.newPage()
+        await page.setViewport({"width": width, "height": height})
+        await page.goto(url, {"waitUntil": "load", "timeout": 30000})
+        await asyncio.sleep(delay)
+        return await page.screenshot({"fullPage": False, "encoding": "binary"})
+    finally:
+        await browser.close()
 
 
 def save_preview_screenshot(url, doctype, docname, field):
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        screenshot_bytes = loop.run_until_complete(capture_screenshot(url))
-    else:
-        screenshot_bytes = loop.run_until_complete(capture_screenshot(url))
+    screenshot_bytes = asyncio.run(capture_screenshot(url))
 
     # ✅ Correct way: Wrap bytes in BytesIO
     screenshot_io = io.BytesIO(screenshot_bytes)
 
-    file_doc = frappe.get_cached_doc(
+    file_doc = frappe.get_doc(
         {
             "doctype": "File",
             "file_name": docname + "_" + "preview.png",

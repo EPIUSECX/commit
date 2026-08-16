@@ -57,6 +57,10 @@ bench new-site my-site.localhost
 bench --site my-site.localhost install-app commit
 ```
 
+For upgrades from an earlier release, read [MIGRATION_V2.md](MIGRATION_V2.md).
+Version 2.0 changes API permissions, public Markdown rendering, OAuth state
+handling, and branch scanning storage.
+
 ## Tech Stack
 
 ### Common Across Web and Mobile

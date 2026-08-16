@@ -1,9 +1,7 @@
 # Copyright (c) 2023, The Commit Company and contributors
 # For license information, please see license.txt
 
-import io
 import os
-from pathlib import Path
 
 import frappe
 from frappe.model.document import Document

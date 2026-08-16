@@ -4,20 +4,20 @@
 import json
 import os
 import shutil
+from pathlib import Path
 
 import frappe
 import git
-from frappe.app import handle_exception
 from frappe.model.document import Document
 from frappe.utils import now
 
-from commit.api.api_explorer import get_file_content_from_path
 from commit.api.generate_documentation import generate_docs_for_apis
 from commit.commit.code_analysis.apis import find_all_occurrences_of_whitelist
 from commit.commit.code_analysis.doctypes import (
     get_doctype_json,
     get_doctypes_in_module,
 )
+from commit.security import get_permitted_doc
 
 
 class CommitProjectBranch(Document):
@@ -34,6 +34,7 @@ class CommitProjectBranch(Document):
             enqueue_after_commit=True,
             at_front=True,
             project_branch=self.name,
+            initiated_by=frappe.session.user,
         )
 
     def on_update(self):
@@ -67,12 +68,18 @@ class CommitProjectBranch(Document):
 
     def get_path_to_folder(self):
         project = frappe.get_cached_doc("Commit Project", self.project)
-        return project.path_to_folder + "/" + self.branch_name
+        base = Path(project.path_to_folder).resolve()
+        branch_path = (base / self.branch_name).resolve()
+        try:
+            branch_path.relative_to(base)
+        except ValueError:
+            frappe.throw("Invalid branch name")
+        return str(branch_path)
 
     def clone_repo(self):
         project = frappe.get_cached_doc("Commit Project", self.project)
         self.app_name = project.app_name
-        repo_url = "https://github.com/{}/{}".format(project.org, project.repo_name)
+        repo_url = f"https://github.com/{project.org}/{project.repo_name}"
 
         folder_path = self.path_to_folder
 
@@ -83,6 +90,7 @@ class CommitProjectBranch(Document):
         self.commit_hash = repo.head.object.hexsha
 
     def fetch_repo(self):
+        previous_hash = self.commit_hash
         repo = git.Repo(self.path_to_folder)
         repo.remotes.origin.fetch()
 
@@ -90,23 +98,19 @@ class CommitProjectBranch(Document):
         try:
             # Try fast-forward pull
             repo.git.pull("--ff-only")
-        except Exception as e:
+        except Exception:
             # If fast-forward not possible, reset to remote branch
             repo.git.reset("--hard", "origin/" + self.branch_name)
 
         self.last_fetched = now()
         self.commit_hash = repo.head.object.hexsha
 
-        self.get_modules()
-        self.find_all_apis()
-        # self.save()
-
-        pass
+        return previous_hash != self.commit_hash
 
     def get_modules(self):
         modules_path = os.path.join(self.path_to_folder, self.app_name, "modules.txt")
         if os.path.isfile(modules_path):
-            modules_file = open(modules_path, "r")
+            modules_file = open(modules_path)
             modules = modules_file.read().splitlines()
             self.modules = ",".join(modules)
 
@@ -126,7 +130,53 @@ class CommitProjectBranch(Document):
         apis = find_all_occurrences_of_whitelist(self.path_to_folder, self.app_name)
         # Convert list to string and save to database
         self.whitelisted_apis = {"apis": apis}
+        self.persist_scan_snapshot(apis)
         return apis
+
+    def persist_scan_snapshot(self, apis):
+        """Persist queryable scan results while retaining the legacy JSON cache."""
+        snapshot = frappe.get_doc(
+            {
+                "doctype": "Commit Scan Snapshot",
+                "project_branch": self.name,
+                "commit_hash": self.commit_hash,
+                "status": "Running",
+                "initiated_by": frappe.session.user,
+                "started_on": frappe.utils.now_datetime(),
+            }
+        ).insert(ignore_permissions=True)
+
+        root = Path(self.path_to_folder).resolve()
+        for api in apis:
+            source_path = Path(api.get("file", "")).resolve()
+            try:
+                relative_path = str(source_path.relative_to(root))
+            except ValueError:
+                continue
+            definition = dict(api)
+            definition["file"] = relative_path
+            frappe.get_doc(
+                {
+                    "doctype": "Commit Discovered API",
+                    "snapshot": snapshot.name,
+                    "api_path": api.get("api_path"),
+                    "function_name": api.get("name"),
+                    "file_path": relative_path,
+                    "request_methods": api.get("request_types") or [],
+                    "allow_guest": api.get("allow_guest", 0),
+                    "xss_safe": api.get("xss_safe", 0),
+                    "block_start": api.get("block_start"),
+                    "block_end": api.get("block_end"),
+                    "definition": definition,
+                }
+            ).insert(ignore_permissions=True)
+
+        snapshot.status = "Completed"
+        snapshot.completed_on = frappe.utils.now_datetime()
+        snapshot.api_count = len(apis)
+        snapshot.save(ignore_permissions=True)
+        self.latest_scan_snapshot = snapshot.name
+        self.scan_status = "Completed"
 
     def get_whitelisted_apis_code(self):
         apis = []
@@ -187,10 +237,9 @@ class CommitProjectBranch(Document):
 
 
 def get_code_from_file(file_path: str, block_start: int, block_end: int):
-
     if os.path.isfile(file_path):
-        file_content = open(file_path, "r")
-        file_content = file_content.readlines()
+        with open(file_path, encoding="utf-8") as source_file:
+            file_content = source_file.readlines()
         # fetch the block
         file_content = file_content[block_start:block_end]
         return {"file_content": file_content}
@@ -198,9 +247,12 @@ def get_code_from_file(file_path: str, block_start: int, block_end: int):
         frappe.throw("File not found")
 
 
-def background_fetch_process(project_branch):
+def background_fetch_process(project_branch, force_fetch=False, initiated_by=None):
+    initiated_by = initiated_by or frappe.session.user
     try:
         doc = frappe.get_cached_doc("Commit Project Branch", project_branch)
+        doc.scan_status = "Running"
+        doc.db_set("scan_status", "Running", update_modified=False)
         frappe.publish_realtime(
             "commit_branch_clone_repo",
             {
@@ -209,10 +261,14 @@ def background_fetch_process(project_branch):
                 "text": "Cloning repository...",
                 "is_completed": False,
             },
-            user=frappe.session.user,
+            user=initiated_by,
         )
 
-        doc.clone_repo()
+        if force_fetch or (Path(doc.path_to_folder) / ".git").is_dir():
+            changed = doc.fetch_repo()
+        else:
+            doc.clone_repo()
+            changed = True
         frappe.publish_realtime(
             "commit_branch_get_modules",
             {
@@ -221,10 +277,11 @@ def background_fetch_process(project_branch):
                 "text": "Getting all modules for your app...",
                 "is_completed": False,
             },
-            user=frappe.session.user,
+            user=initiated_by,
         )
 
-        doc.get_modules()
+        if changed:
+            doc.get_modules()
 
         frappe.publish_realtime(
             "commit_branch_find_apis",
@@ -234,10 +291,11 @@ def background_fetch_process(project_branch):
                 "text": "Finding all APIs...",
                 "is_completed": False,
             },
-            user=frappe.session.user,
+            user=initiated_by,
         )
 
-        doc.find_all_apis()
+        if changed:
+            doc.find_all_apis()
 
         # doc.get_whitelisted_apis_code()
         doc.save()
@@ -251,10 +309,10 @@ def background_fetch_process(project_branch):
                 "text": "Branch created successfully.",
                 "is_completed": True,
             },
-            user=frappe.session.user,
+            user=initiated_by,
         )
 
-    except Exception as e:
+    except Exception:
         # throw the error and delete the document
         messages = [
             json.dumps({"message": "There was an error while fetching branch repo."})
@@ -272,26 +330,50 @@ def background_fetch_process(project_branch):
                 # 'response': handle_exception(e),
                 "is_completed": False,
             },
-            user=frappe.session.user,
+            user=initiated_by,
         )
 
-        frappe.delete_doc("Commit Project Branch", project_branch)
-        # frappe.throw("Project Branch not found")
-        frappe.log(frappe.get_traceback())
+        if "doc" in locals():
+            doc.db_set("scan_status", "Failed", update_modified=False)
+            if doc.commit_hash:
+                frappe.get_doc(
+                    {
+                        "doctype": "Commit Scan Snapshot",
+                        "project_branch": doc.name,
+                        "commit_hash": doc.commit_hash,
+                        "status": "Failed",
+                        "initiated_by": initiated_by,
+                        "started_on": frappe.utils.now_datetime(),
+                        "completed_on": frappe.utils.now_datetime(),
+                        "error": frappe.get_traceback()[-10000:],
+                    }
+                ).insert(ignore_permissions=True)
+        frappe.log_error(frappe.get_traceback(), "Commit branch scan failed")
 
         # raise e
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(methods=["POST"])
 def fetch_repo(doc, name=None):
     if name:
-        project_branch = frappe.get_cached_doc("Commit Project Branch", name)
+        project_branch = get_permitted_doc("Commit Project Branch", name, "write")
     else:
         doc = json.loads(doc)
-        project_branch = frappe.get_cached_doc("Commit Project Branch", doc.get("name"))
-    project_branch.fetch_repo()
-    project_branch.save()
-    return "Hello"
+        project_branch = get_permitted_doc(
+            "Commit Project Branch", doc.get("name"), "write"
+        )
+    project_branch.db_set("scan_status", "Queued", update_modified=False)
+    frappe.enqueue(
+        method=background_fetch_process,
+        queue="long",
+        enqueue_after_commit=True,
+        deduplicate=True,
+        project_branch=project_branch.name,
+        force_fetch=True,
+        initiated_by=frappe.session.user,
+        job_name=f"Commit branch fetch {project_branch.name}",
+    )
+    return {"queued": True, "project_branch": project_branch.name}
 
 
 def generate_branch_documentation(project_branch):
@@ -322,11 +404,11 @@ def generate_branch_documentation(project_branch):
     return "Documentation generated successfully"
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_module_doctype_map_for_branches(branches: str):
     branches = json.loads(branches)
     module_doctypes_map = {}
     for branch in branches:
-        project_branch = frappe.get_cached_doc("Commit Project Branch", branch)
+        project_branch = get_permitted_doc("Commit Project Branch", branch)
         module_doctypes_map[branch] = json.loads(project_branch.module_doctypes_map)
     return module_doctypes_map
