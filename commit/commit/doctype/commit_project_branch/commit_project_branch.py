@@ -82,7 +82,8 @@ class CommitProjectBranch(Document):
     def clone_repo(self):
         project = frappe.get_cached_doc("Commit Project", self.project)
         self.app_name = project.app_name
-        repo_url = f"https://github.com/{project.org}/{project.repo_name}"
+        github_org = frappe.db.get_value("Commit Organization", project.org, "github_org")
+        repo_url = f"https://github.com/{github_org}/{project.repo_name}"
 
         folder_path = self.path_to_folder
 

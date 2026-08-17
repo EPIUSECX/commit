@@ -12,7 +12,8 @@ from commit.api.code_analysis import get_name_of_app
 class CommitProject(Document):
 
     def before_insert(self):
-        self.app_name = get_name_of_app(self.org, self.repo_name)
+        if not self.app_name:
+            self.app_name = get_name_of_app(self.org, self.repo_name)
         self.create_project_folder()
 
     def create_project_folder(self):

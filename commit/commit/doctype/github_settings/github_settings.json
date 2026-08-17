@@ -8,6 +8,9 @@
  "engine": "InnoDB",
  "field_order": [
   "github_app_name",
+  "connection_status_section",
+  "github_app_slug",
+  "github_app_html_url",
   "client_id",
   "client_secret",
   "authorization_uri",
@@ -16,6 +19,11 @@
   "scopes",
   "github_app_id",
   "installation_id",
+  "installation_account",
+  "installation_account_type",
+  "installation_repository_selection",
+  "connected_on",
+  "setup_source",
   "private_key",
   "installation_token",
   "webhook_secret",
@@ -26,8 +34,7 @@
    "fieldname": "client_id",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Client ID",
-   "reqd": 1
+   "label": "Client ID"
   },
   {
    "fieldname": "client_secret",
@@ -36,18 +43,18 @@
    "length": 400
   },
   {
+   "default": "https://github.com/login/oauth/authorize",
    "fieldname": "authorization_uri",
    "fieldtype": "Small Text",
    "in_list_view": 1,
-   "label": "Authorization URI",
-   "reqd": 1
+   "label": "Authorization URI"
   },
   {
+   "default": "https://github.com/login/oauth/access_token",
    "fieldname": "token_uri",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Token URI",
-   "reqd": 1
+   "label": "Token URI"
   },
   {
    "description": "This is the Callback URI registered in your Github App.",
@@ -66,6 +73,23 @@
    "label": "Github App name"
   },
   {
+   "fieldname": "connection_status_section",
+   "fieldtype": "Section Break",
+   "label": "Automated GitHub App Connection"
+  },
+  {
+   "fieldname": "github_app_slug",
+   "fieldtype": "Data",
+   "label": "GitHub App Slug",
+   "read_only": 1
+  },
+  {
+   "fieldname": "github_app_html_url",
+   "fieldtype": "Data",
+   "label": "GitHub App URL",
+   "read_only": 1
+  },
+  {
    "fieldname": "github_app_id",
    "fieldtype": "Data",
    "label": "GitHub App ID"
@@ -80,6 +104,36 @@
    "fieldname": "installation_id",
    "fieldtype": "Data",
    "label": "Installation ID"
+  },
+  {
+   "fieldname": "installation_account",
+   "fieldtype": "Data",
+   "label": "Installed Account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "installation_account_type",
+   "fieldtype": "Data",
+   "label": "Account Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "installation_repository_selection",
+   "fieldtype": "Data",
+   "label": "Repository Selection",
+   "read_only": 1
+  },
+  {
+   "fieldname": "connected_on",
+   "fieldtype": "Datetime",
+   "label": "Connected On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "setup_source",
+   "fieldtype": "Data",
+   "label": "Setup Source",
+   "read_only": 1
   },
   {
    "fieldname": "private_key",

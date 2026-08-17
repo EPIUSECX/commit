@@ -54,15 +54,27 @@ def installation_token():
     private_key = settings.get_password("private_key")
     if not private_key or not settings.github_app_id or not settings.installation_id:
         frappe.throw("Configure the GitHub App ID, installation ID, and private key")
-    now = int(time.time())
-    app_jwt = jwt.encode({"iat": now - 60, "exp": now + 540, "iss": str(settings.github_app_id)}, private_key, algorithm="RS256")
     response = requests.post(
         f"{GITHUB}/app/installations/{settings.installation_id}/access_tokens",
-        headers={"Authorization": f"Bearer {app_jwt}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+        headers={"Authorization": f"Bearer {app_jwt()}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
         timeout=(5, 20),
     )
     response.raise_for_status()
     return response.json()["token"]
+
+
+def app_jwt():
+    """Return a short-lived JWT proving the configured GitHub App identity."""
+    settings = frappe.get_single("Github Settings")
+    private_key = settings.get_password("private_key")
+    if not private_key or not settings.github_app_id:
+        frappe.throw("Configure the GitHub App ID and private key")
+    now = int(time.time())
+    return jwt.encode(
+        {"iat": now - 60, "exp": now + 540, "iss": str(settings.github_app_id)},
+        private_key,
+        algorithm="RS256",
+    )
 
 
 def github_request(method, path, **kwargs):

@@ -12,12 +12,25 @@ def get_status():
 	"""Return non-secret setup progress for the Commit onboarding checklist."""
 	frappe.only_for("System Manager")
 
-	github_oauth = _single_has_value("Github Settings", ("client_id",))
-	github_app = _single_has_value(
-		"Github Settings", ("github_app_id", "installation_id", "installation_token")
+	github_settings = frappe.get_single("Github Settings")
+	github_connected = bool(
+		github_settings.installation_id
+		and (
+			github_settings.get_password("installation_token", raise_exception=False)
+			or (
+				github_settings.github_app_id
+				and github_settings.get_password("private_key", raise_exception=False)
+			)
+		)
 	)
 	status = {
-		"github": github_oauth or github_app,
+		"github": github_connected,
+		"github_connected": github_connected,
+		"github_app_created": bool(github_settings.github_app_id),
+		"github_account": github_settings.installation_account,
+		"github_account_type": github_settings.installation_account_type,
+		"github_repository_selection": github_settings.installation_repository_selection,
+		"github_webhooks_enabled": bool(github_settings.webhook_enabled),
 		"commit_settings": True,
 		"openai": _single_has_value("Open AI Settings", ("api_key",)),
 		"organizations": frappe.db.count("Commit Organization"),
