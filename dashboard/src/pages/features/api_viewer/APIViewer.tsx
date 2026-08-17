@@ -68,8 +68,9 @@ export const APIViewer = ({ projectBranch }: { projectBranch: string }) => {
             revalidateOnFocus: false,
             revalidateIfStale: false,
             onSuccess: (d: { message: GetAPIResponse }) => {
-                if (!selectedendpoint) {
-                    setSelectedEndpoint(d.message.apis[0].name)
+                const firstEndpoint = d.message?.apis?.[0]?.name
+                if (!selectedendpoint && firstEndpoint) {
+                    setSelectedEndpoint(firstEndpoint)
                 }
             }
         }

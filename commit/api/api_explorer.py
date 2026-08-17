@@ -75,6 +75,7 @@ def get_apis_for_project(project_branch: str):
         "branch_name": branch_doc.branch_name,
         "project_branch": branch_doc.name,
         "last_updated": branch_doc.last_fetched,
+        "path_to_folder": branch_doc.path_to_folder,
     }
 
 

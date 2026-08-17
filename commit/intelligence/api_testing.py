@@ -121,4 +121,11 @@ def execute_collection(collection_name, triggered_by=None):
 
 def run_scheduled(frequency):
     for name in frappe.get_all("Commit API Collection", filters={"schedule": frequency}, pluck="name"):
-        frappe.enqueue("commit.intelligence.api_testing.execute_collection", queue="long", collection_name=name, triggered_by="Administrator", deduplicate=True, job_name=f"Commit API tests {name}")
+        frappe.enqueue(
+            "commit.intelligence.api_testing.execute_collection",
+            queue="long",
+            collection_name=name,
+            triggered_by="Administrator",
+            deduplicate=True,
+            job_id=f"commit-api-tests-{name}",
+        )

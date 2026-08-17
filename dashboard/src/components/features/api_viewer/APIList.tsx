@@ -81,7 +81,7 @@ const APIList = ({ apiList, app_name, branch_name, setSelectedEndpoint, selected
 
         return apiList.filter((api: APIData) => {
 
-            return api.name.toLowerCase().includes(searchQuery.toLowerCase()) && (requestTypeFilter !== 'All' ? api.request_types.includes(requestTypeFilter.toUpperCase()) : true)
+            return (api.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) && (requestTypeFilter !== 'All' ? (api.request_types ?? []).includes(requestTypeFilter.toUpperCase()) : true)
 
         })
 
@@ -195,13 +195,21 @@ const APIList = ({ apiList, app_name, branch_name, setSelectedEndpoint, selected
             </div>
             {/* fixed height container */}
             <div className="flex flex-col space-y-4  overflow-y-auto h-[calc(100vh-12rem)]">
-                <ListView list={filterList} setSelectedEndpoint={setSelectedEndpoint} selectedEndpoint={selectedEndpoint} searchQuery={searchQuery} listRef={listRef} />
+                <ListView
+                    list={filterList}
+                    setSelectedEndpoint={setSelectedEndpoint}
+                    selectedEndpoint={selectedEndpoint}
+                    searchQuery={searchQuery}
+                    listRef={listRef}
+                    emptyTitle={apiList.length === 0 ? "No Frappe APIs detected" : "No matching APIs"}
+                    emptyDescription={apiList.length === 0 ? "API Explorer populates after a repository scan discovers @frappe.whitelist endpoints." : "Try a different search term or request method."}
+                />
             </div>
         </div>
     )
 }
 
-export const ListView = ({ list, setSelectedEndpoint, selectedEndpoint, searchQuery, listRef }: { list: APIData[], setSelectedEndpoint: (endpoint: string) => void, selectedEndpoint?: string, searchQuery?: string, listRef?: React.RefObject<HTMLDivElement> }) => {
+export const ListView = ({ list, setSelectedEndpoint, selectedEndpoint, searchQuery, listRef, emptyTitle = "No matching APIs", emptyDescription = "Try a different search term or request method." }: { list: APIData[], setSelectedEndpoint: (endpoint: string) => void, selectedEndpoint?: string, searchQuery?: string, listRef?: React.RefObject<HTMLDivElement>, emptyTitle?: string, emptyDescription?: string }) => {
 
     const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
 
@@ -218,9 +226,10 @@ export const ListView = ({ list, setSelectedEndpoint, selectedEndpoint, searchQu
         <div ref={listRef}>
             <ul role="list" className="divide-y divide-gray-100 px-1 pb-6">
             {list.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] space-y-2" style={{ minHeight: '20rem' }} >
-                    <p className="text-gray-500 text-lg">Sorry we couldn't find what you were looking for.</p>
-                    <p className="text-gray-500 text-lg">Try searching with different keywords.</p>
+                <div className="flex min-h-80 flex-col items-center justify-center rounded-xl border border-dashed bg-gray-50/60 px-6 text-center">
+                    <div className="mb-3 rounded-full border bg-white p-3 text-gray-400"><FileJson className="h-5 w-5" /></div>
+                    <p className="font-semibold text-gray-900">{emptyTitle}</p>
+                    <p className="mt-1 max-w-md text-sm text-gray-500">{emptyDescription}</p>
                 </div>
             )}
             {list.map((person: APIData, index: number) => (
@@ -238,7 +247,7 @@ export const ListView = ({ list, setSelectedEndpoint, selectedEndpoint, searchQu
                     </div>
                     <div className="hidden shrink-0 sm:flex sm:flex-col sm:items-end">
                         <p className="text-sm leading-6 text-gray-900 space-x-1">
-                            {person.request_types.map((type: string, idx: number) => (
+                            {(person.request_types ?? []).map((type: string, idx: number) => (
                                 <span key={idx} className="text-xs font-semibold leading-5 text-gray-500">{type} {idx !== person.request_types.length - 1 ? '/' : ''}</span>
                             ))}
                         </p>
@@ -256,7 +265,7 @@ export const ListView = ({ list, setSelectedEndpoint, selectedEndpoint, searchQu
             ))}
         </ul>
             {/* create a div which is at fixed location  and should be stick bottom which will show total list count at right corner of same w as above ul*/}
-            {list.length && <div className="fixed bottom-0 flex justify-end p-2 w-[44%] bg-white h-10 border-t">
+            {list.length > 0 && <div className="fixed bottom-0 flex justify-end p-2 w-[44%] bg-white h-10 border-t">
                 <p className="text-sm justify-end">{list.length} API's {searchQuery ? "found" : ''}</p>
             </div>}
         </div>

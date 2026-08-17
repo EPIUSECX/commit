@@ -36,7 +36,7 @@ def refresh_scheduled_branches():
             force_fetch=True,
             initiated_by=branch.owner,
             deduplicate=True,
-            job_name=f"Scheduled Commit branch fetch {branch.name}",
+            job_id=f"commit-scheduled-branch-fetch-{branch.name}",
         )
 
 

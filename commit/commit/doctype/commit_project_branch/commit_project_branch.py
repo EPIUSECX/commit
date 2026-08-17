@@ -55,15 +55,19 @@ class CommitProjectBranch(Document):
             and old_doc.whitelisted_apis != self.whitelisted_apis
             and len(apis) > 0
         ):
-            frappe.enqueue(
-                method=generate_branch_documentation,
-                is_async=True,
-                job_name="Generate Branch Documentation",
-                enqueue_after_commit=True,
-                at_front=True,
-                queue="long",
-                project_branch=self.name,
-            )
+            open_ai = frappe.get_single("Open AI Settings")
+            if open_ai.model and open_ai.get_password(
+                "api_key", raise_exception=False
+            ):
+                frappe.enqueue(
+                    method=generate_branch_documentation,
+                    is_async=True,
+                    job_name="Generate Branch Documentation",
+                    enqueue_after_commit=True,
+                    at_front=True,
+                    queue="long",
+                    project_branch=self.name,
+                )
 
     def create_branch_folder(self):
         if not os.path.exists(self.path_to_folder):
@@ -262,7 +266,7 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
             user=initiated_by,
         )
 
-        if changed:
+        if changed or force_fetch:
             doc.get_modules()
 
         frappe.publish_realtime(
@@ -276,7 +280,7 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
             user=initiated_by,
         )
 
-        if changed:
+        if changed or force_fetch:
             doc.find_all_apis()
         else:
             doc.scan_status = "Completed"
@@ -357,10 +361,10 @@ def fetch_repo(doc, name=None):
         queue="long",
         enqueue_after_commit=True,
         deduplicate=True,
+        job_id=f"commit-branch-fetch-{project_branch.name}",
         project_branch=project_branch.name,
         force_fetch=True,
         initiated_by=frappe.session.user,
-        job_name=f"Commit branch fetch {project_branch.name}",
     )
     return {"queued": True, "project_branch": project_branch.name}
 

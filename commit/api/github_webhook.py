@@ -35,7 +35,15 @@ def github_webhook():
     branch = frappe.db.get_value("Commit Project Branch", {"project": project, "branch_name": branch_name}) if project else None
     if not branch:
         return {"accepted": False, "reason": "No tracked Commit branch matches this event"}
-    frappe.enqueue("commit.intelligence.github.process_event", queue="long", project_branch=branch, head_sha=head_sha, delivery=delivery, deduplicate=True, job_name=f"GitHub scan {delivery}")
+    frappe.enqueue(
+        "commit.intelligence.github.process_event",
+        queue="long",
+        project_branch=branch,
+        head_sha=head_sha,
+        delivery=delivery,
+        deduplicate=True,
+        job_id=f"commit-github-scan-{delivery}",
+    )
     return {"accepted": True, "project_branch": branch}
 
 
