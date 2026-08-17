@@ -8,6 +8,7 @@ import { APIExplorer } from "./APIExplorer";
 import ProjectCard from "./Projects/ProjectCard";
 import { ViewERDButton } from "./ViewERDButton";
 import { ErrorBanner } from "@/components/common/ErrorBanner/ErrorBanner";
+import { ConfigurationOnboarding } from "./ConfigurationOnboarding";
 
 
 export interface ProjectWithBranch extends CommitProject {
@@ -50,6 +51,7 @@ const Projects = () => {
         return (
             <div className="mx-auto pl-2 pr-4 pt-2 pb-4">
                 <div className="flex flex-col gap-4">
+                    {isCreateAccess && <ConfigurationOnboarding />}
                     <div className="grid grid-cols-1 gap-6 justify-between sm:grid-cols-2">
                         <ViewERDButton data={data?.message} />
                         <APIExplorer />

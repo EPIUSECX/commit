@@ -5,6 +5,18 @@ app_publisher = "The Commit Company"
 app_description = "The Commit Company"
 app_email = "support@thecommit.company"
 app_license = "AGPL-3.0-or-later"
+app_logo_url = "/assets/commit/images/commit-logo.svg"
+app_home = "/app/commit"
+
+add_to_apps_screen = [
+	{
+		"name": app_name,
+		"logo": app_logo_url,
+		"title": "Commit",
+		"route": app_home,
+		"has_permission": "commit.permissions.has_app_permission",
+	}
+]
 
 # Includes in <head>
 # ------------------

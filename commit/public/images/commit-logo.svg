@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Commit">
+  <rect width="128" height="128" rx="28" fill="#111827"/>
+  <path d="M38 38h52v16H54v20h36v16H38z" fill="#fff"/>
+  <circle cx="91" cy="90" r="10" fill="#22c55e"/>
+</svg>

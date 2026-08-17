@@ -1,1 +1,2 @@
 commit.patches.v3_0.bootstrap_intelligence
+commit.patches.v3_0.add_commit_desktop_icon

@@ -1,0 +1,22 @@
+{
+ "app": "commit",
+ "creation": "2026-08-17 06:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "git-branch",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Commit",
+ "link_to": "Commit",
+ "link_type": "Workspace Sidebar",
+ "logo_url": "/assets/commit/images/commit-logo.svg",
+ "modified": "2026-08-17 06:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Commit",
+ "owner": "Administrator",
+ "parent_icon": "",
+ "restrict_removal": 0,
+ "roles": [],
+ "standard": 1
+}
