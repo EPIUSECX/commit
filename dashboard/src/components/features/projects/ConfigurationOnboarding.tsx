@@ -3,11 +3,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "@/components/ui/use-toast"
+import { useDebounce } from "@/hooks/useDebounce"
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk"
-import { Bell, Bot, Check, ChevronRight, ExternalLink, GitBranch, Github, Loader2, Lock, Settings, ShieldCheck } from "lucide-react"
+import { Bell, Bot, Building2, Check, ChevronRight, ChevronsUpDown, ExternalLink, GitBranch, Github, Loader2, Lock, Settings, ShieldCheck, UserRound } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
 type Status = {
@@ -40,6 +42,12 @@ type Repository = {
     default_branch: string
     language?: string
     imported: boolean
+}
+
+type GitHubOrganization = {
+    login: string
+    avatar_url?: string
+    html_url?: string
 }
 
 type ConnectionStart =
@@ -153,11 +161,20 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
 
 export function ConfigurationOnboarding() {
     const [pickerOpen, setPickerOpen] = useState(false)
+    const [ownerSelectorOpen, setOwnerSelectorOpen] = useState(false)
+    const [organizationQuery, setOrganizationQuery] = useState("")
     const [githubOrganization, setGithubOrganization] = useState("")
+    const debouncedOrganizationQuery = useDebounce(organizationQuery.trim(), 300)
     const { data, error, isLoading, mutate } = useFrappeGetCall<{ message: Status }>(
         "commit.api.onboarding.get_status",
         {},
         "commit-onboarding-status",
+        { revalidateOnFocus: false }
+    )
+    const organizationSearch = useFrappeGetCall<{ message: GitHubOrganization[] }>(
+        "commit.api.github_connection.search_organizations",
+        { query: debouncedOrganizationQuery },
+        debouncedOrganizationQuery.length >= 2 ? `commit-github-organizations-${debouncedOrganizationQuery}` : null,
         { revalidateOnFocus: false }
     )
     const connection = useFrappePostCall<{ message: ConnectionStart }>("commit.api.github_connection.start_connection")
@@ -172,6 +189,8 @@ export function ConfigurationOnboarding() {
             void mutate()
         } else if (github === "error") {
             toast({ variant: "destructive", description: "GitHub authorization was not completed. You can safely try again." })
+        } else if (github === "restart_required") {
+            toast({ variant: "destructive", description: "The previous GitHub App setup was incomplete. Start the connection again to create a valid App." })
         }
         params.delete("github")
         params.delete("reason")
@@ -222,13 +241,44 @@ export function ConfigurationOnboarding() {
                             </span>
                             {!status.github_webhooks_enabled && status.github_connected && <span className="mt-1 block text-xs text-amber-700">Webhooks need a public HTTPS site; manual scans still work locally.</span>}
                             {!status.github_connected && !status.github_app_created && (
-                                <Input
-                                    value={githubOrganization}
-                                    onChange={event => setGithubOrganization(event.target.value)}
-                                    placeholder="GitHub organization (optional)"
-                                    aria-label="GitHub organization"
-                                    className="mt-3 h-8 bg-white"
-                                />
+                                <span className="mt-3 block">
+                                    <span className="mb-1.5 block text-xs font-medium text-gray-600">GitHub App owner</span>
+                                    <Popover open={ownerSelectorOpen} onOpenChange={setOwnerSelectorOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" role="combobox" aria-expanded={ownerSelectorOpen} className="h-9 w-full justify-between bg-white px-3 font-normal">
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    {githubOrganization ? <Building2 className="h-4 w-4 text-gray-500" /> : <UserRound className="h-4 w-4 text-gray-500" />}
+                                                    <span className="truncate">{githubOrganization || "Personal account"}</span>
+                                                </span>
+                                                <ChevronsUpDown className="h-4 w-4 shrink-0 text-gray-400" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent align="start" className="w-[320px] p-0">
+                                            <Command shouldFilter={false}>
+                                                <CommandInput value={organizationQuery} onValueChange={setOrganizationQuery} placeholder="Search GitHub organizations…" />
+                                                <CommandList>
+                                                    <CommandGroup heading="App owner">
+                                                        <CommandItem value="personal-account" onSelect={() => { setGithubOrganization(""); setOwnerSelectorOpen(false) }}>
+                                                            <UserRound className="mr-2 h-4 w-4" />
+                                                            <span className="flex-1">Personal account</span>
+                                                            {!githubOrganization && <Check className="h-4 w-4" />}
+                                                        </CommandItem>
+                                                        {(organizationSearch.data?.message ?? []).map(organization => (
+                                                            <CommandItem key={organization.login} value={organization.login} onSelect={() => { setGithubOrganization(organization.login); setOwnerSelectorOpen(false) }}>
+                                                                {organization.avatar_url ? <img src={organization.avatar_url} alt="" className="mr-2 h-5 w-5 rounded" /> : <Building2 className="mr-2 h-4 w-4" />}
+                                                                <span className="flex-1">{organization.login}</span>
+                                                                {githubOrganization === organization.login && <Check className="h-4 w-4" />}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                    {organizationSearch.isLoading && <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Searching GitHub…</div>}
+                                                    {debouncedOrganizationQuery.length >= 2 && !organizationSearch.isLoading && <CommandEmpty>No organizations found.</CommandEmpty>}
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <span className="mt-1.5 block text-[11px] leading-4 text-muted-foreground">Choose the organization that should own this private App, or use your personal account.</span>
+                                </span>
                             )}
                             <span className="mt-3 flex flex-wrap gap-2">
                                 {status.github_connected ? (

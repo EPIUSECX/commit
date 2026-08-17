@@ -39,6 +39,12 @@ class TestGithubConnection(TestCase):
 			"https://github.com/organizations/EPIUSECX/settings/apps/new",
 		)
 
+	def test_manifest_config_requires_private_key(self):
+		with self.assertRaises(Exception):
+			github_connection._validate_manifest_config(
+				{"id": 1, "client_id": "client", "client_secret": "secret", "slug": "commit-test"}
+			)
+
 	@patch("commit.api.github_connection.github_request")
 	def test_app_name_is_read_from_pyproject(self, github_request):
 		github_request.return_value = {

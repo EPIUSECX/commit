@@ -121,6 +121,21 @@ def manifest_create_url(organization: str | None = None) -> str:
 	return MANIFEST_ORGANIZATION_URL.format(organization=organization)
 
 
+def _validate_manifest_config(config: dict[str, Any]) -> None:
+	required = {
+		"id": config.get("id"),
+		"client_id": config.get("client_id"),
+		"client_secret": config.get("client_secret"),
+		"pem": config.get("pem"),
+		"slug": config.get("slug"),
+	}
+	missing = [field for field, value in required.items() if not value]
+	if missing:
+		frappe.throw(
+			"GitHub returned an incomplete App configuration. Missing: " + ", ".join(missing)
+		)
+
+
 def _installation_url(settings, user: str) -> str:
 	state = _new_state("install", user)
 	base = settings.github_app_html_url or f"https://github.com/apps/{settings.github_app_slug}"
@@ -162,6 +177,7 @@ def manifest_callback(code: str | None = None, state: str | None = None):
 	)
 	response.raise_for_status()
 	config = response.json()
+	_validate_manifest_config(config)
 	settings = frappe.get_doc("Github Settings")
 	settings.github_app_name = config.get("name")
 	settings.github_app_id = str(config.get("id") or "")
@@ -182,7 +198,12 @@ def manifest_callback(code: str | None = None, state: str | None = None):
 	settings.installation_account = None
 	settings.connected_on = None
 	settings.save(ignore_permissions=True)
+	if not settings.get_password("private_key", raise_exception=False):
+		frappe.throw("The GitHub App private key could not be stored securely. Please start again.")
 	record_event("github.app-created", details={"app_id": settings.github_app_id}, user=payload["user"])
+	# This callback is a GET redirect. Commit before sending the browser to GitHub,
+	# otherwise Frappe rolls back the credentials at the end of the request.
+	frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 	_redirect(_installation_url(settings, payload["user"]))
 
 
@@ -201,8 +222,11 @@ def install_callback(installation_id: str | None = None, state: str | None = Non
 	payload = _consume_state(state, "install")
 	if not installation_id:
 		frappe.throw("GitHub did not return an installation ID.")
-	installation = _app_installation(str(installation_id))
 	settings = frappe.get_single("Github Settings")
+	if not settings.github_app_id or not settings.get_password("private_key", raise_exception=False):
+		_redirect(_site_url("commit?github=restart_required"))
+		return
+	installation = _app_installation(str(installation_id))
 	if str(installation.get("app_id")) != str(settings.github_app_id):
 		frappe.throw("That installation does not belong to this Commit GitHub App.", frappe.PermissionError)
 	oauth_state = _new_state(
@@ -289,7 +313,34 @@ def oauth_callback(code: str | None = None, state: str | None = None, error: str
 		details={"installation_id": installation_id, "account": account.get("login")},
 		user=payload["user"],
 	)
+	# Persist the verified installation before redirecting back to the SPA.
+	frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
 	_redirect(_site_url("commit?github=connected"))
+
+
+@frappe.whitelist()
+def search_organizations(query: str):
+	"""Return public GitHub organizations matching the setup owner's search."""
+	frappe.only_for("System Manager")
+	query = (query or "").strip()
+	if len(query) < 2:
+		return []
+	response = requests.get(
+		f"{GITHUB}/search/users",
+		headers=_headers(),
+		params={"q": f"{query} type:org", "per_page": 8},
+		timeout=(5, 20),
+	)
+	response.raise_for_status()
+	return [
+		{
+			"login": item.get("login"),
+			"avatar_url": item.get("avatar_url"),
+			"html_url": item.get("html_url"),
+		}
+		for item in response.json().get("items", [])
+		if item.get("login")
+	]
 
 
 def _repo_summary(repo: dict[str, Any]) -> dict[str, Any]:
