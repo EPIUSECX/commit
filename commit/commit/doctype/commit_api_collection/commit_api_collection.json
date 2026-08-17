@@ -1,0 +1,14 @@
+{
+ "doctype": "DocType", "name": "Commit API Collection", "module": "commit", "autoname": "format:{project}-{collection_name}", "engine": "InnoDB", "track_changes": 1,
+ "field_order": ["project", "collection_name", "description", "environment", "schedule", "requests"],
+ "fields": [
+  {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Commit Project", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "collection_name", "fieldtype": "Data", "label": "Collection Name", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
+  {"fieldname": "environment", "fieldtype": "Link", "label": "Environment", "options": "Commit API Environment"},
+  {"fieldname": "schedule", "fieldtype": "Select", "label": "Schedule", "options": "\nHourly\nDaily\nWeekly"},
+  {"fieldname": "requests", "fieldtype": "Table", "label": "Requests", "options": "Commit API Request"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}, {"role": "Commit Project Member", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}],
+ "sort_field": "modified", "sort_order": "DESC"
+}

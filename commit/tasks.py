@@ -1,6 +1,8 @@
 import frappe
 from frappe.utils import date_diff, getdate, nowdate
 
+from commit.intelligence.api_testing import run_scheduled
+
 
 def refresh_scheduled_branches():
     """Queue due branch refreshes once daily without overlapping active scans."""
@@ -36,3 +38,32 @@ def refresh_scheduled_branches():
             deduplicate=True,
             job_name=f"Scheduled Commit branch fetch {branch.name}",
         )
+
+
+def run_hourly_api_tests():
+    run_scheduled("Hourly")
+
+
+def run_daily_api_tests():
+    run_scheduled("Daily")
+
+
+def run_weekly_api_tests():
+    run_scheduled("Weekly")
+
+
+def maintain_intelligence_data():
+    """Expire temporary suppressions and age out low-value analytics events."""
+    expired = frappe.get_all(
+        "Commit Finding",
+        filters={"status": "Suppressed", "suppression_expires_on": ["<", nowdate()]},
+        pluck="name",
+    )
+    for finding in expired:
+        frappe.db.set_value(
+            "Commit Finding",
+            finding,
+            {"status": "Open", "suppression_reason": None, "suppression_expires_on": None},
+        )
+    cutoff = frappe.utils.add_days(nowdate(), -180)
+    frappe.db.delete("Commit Analytics Event", {"creation": ["<", cutoff]})

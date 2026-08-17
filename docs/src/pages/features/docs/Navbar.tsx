@@ -5,10 +5,23 @@ import { DocsNavbarItem } from "./docs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Search } from "lucide-react";
 import { useGetCommitDocsDetails } from "@/hooks/useGetCommitDocsDetails";
+import { useFrappePostCall } from "frappe-react-sdk";
+import { useState } from "react";
 
 
 export const Navbar = ({ ID }: { ID: string }) => {
     const { data, isLoading } = useGetCommitDocsDetails(ID);
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState<{ entry_type: string; title: string; route: string }[]>([]);
+    const searchCall = useFrappePostCall<{ message: { entry_type: string; title: string; route: string }[] }>("commit.api.intelligence.search");
+    const runSearch = async () => {
+        if (!query.trim()) {
+            setResults([]);
+            return;
+        }
+        const response = await searchCall.call({ query });
+        setResults(response.message ?? []);
+    };
     if (data) {
         const navbar_items = data.navbar_items;
         return (
@@ -20,8 +33,9 @@ export const Navbar = ({ ID }: { ID: string }) => {
                             <div className="h-full relative flex-1 flex justify-between items-center gap-x-4 min-w-0">
                                 {/* Left side: Search bar */}
                                 <div className="flex items-center w-1/3 relative">
-                                    <Input placeholder="Search..." className="w-full pl-10" />
+                                    <Input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === "Enter" && runSearch()} placeholder="Search documentation..." className="w-full pl-10" aria-label="Search documentation" />
                                     <Search size={16} className="absolute left-3 text-gray-800" />
+                                    {results.length > 0 && <div className="absolute left-0 top-11 z-50 max-h-80 w-[28rem] overflow-auto rounded-md border bg-white p-2 shadow-lg">{results.map((result, index) => <button key={`${result.route}-${index}`} type="button" onClick={() => window.location.assign(result.route)} className="block w-full rounded p-2 text-left hover:bg-gray-100"><span className="text-xs text-gray-500">{result.entry_type}</span><div className="text-sm font-medium">{result.title}</div></button>)}</div>}
                                 </div>
                                 {/* Right side: Navbar items */}
                                 <div className="flex items-center space-x-2">

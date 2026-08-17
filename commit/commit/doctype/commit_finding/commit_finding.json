@@ -1,0 +1,23 @@
+{
+ "doctype": "DocType", "name": "Commit Finding", "module": "commit", "autoname": "hash", "engine": "InnoDB", "track_changes": 1,
+ "field_order": ["snapshot", "project_branch", "rule", "title", "severity", "blocking", "status", "component_identity", "file_path", "line_number", "evidence", "remediation", "assignee", "suppression_reason", "suppression_expires_on"],
+ "fields": [
+  {"fieldname": "snapshot", "fieldtype": "Link", "label": "Snapshot", "options": "Commit Scan Snapshot", "reqd": 1},
+  {"fieldname": "project_branch", "fieldtype": "Link", "label": "Project Branch", "options": "Commit Project Branch", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "rule", "fieldtype": "Data", "label": "Rule", "reqd": 1},
+  {"fieldname": "title", "fieldtype": "Data", "label": "Title", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "severity", "fieldtype": "Select", "label": "Severity", "options": "Info\nLow\nMedium\nHigh\nCritical", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "blocking", "fieldtype": "Check", "label": "Blocking", "in_list_view": 1},
+  {"default": "Open", "fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Open\nAcknowledged\nResolved\nSuppressed", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "component_identity", "fieldtype": "Data", "label": "Component"},
+  {"fieldname": "file_path", "fieldtype": "Data", "label": "File Path"},
+  {"fieldname": "line_number", "fieldtype": "Int", "label": "Line"},
+  {"fieldname": "evidence", "fieldtype": "Long Text", "label": "Evidence"},
+  {"fieldname": "remediation", "fieldtype": "Small Text", "label": "Remediation"},
+  {"fieldname": "assignee", "fieldtype": "Link", "label": "Assignee", "options": "User"},
+  {"fieldname": "suppression_reason", "fieldtype": "Small Text", "label": "Suppression Reason"},
+  {"fieldname": "suppression_expires_on", "fieldtype": "Date", "label": "Suppression Expires On"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}, {"role": "Commit Project Member", "read": 1, "report": 1, "write": 1}],
+ "sort_field": "creation", "sort_order": "DESC"
+}

@@ -1,0 +1,8 @@
+{
+ "doctype": "DocType", "name": "Commit Organization Member", "module": "commit", "istable": 1, "editable_grid": 1,
+ "field_order": ["user", "access_level"],
+ "fields": [
+  {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "reqd": 1, "in_list_view": 1},
+  {"default": "Viewer", "fieldname": "access_level", "fieldtype": "Select", "label": "Access Level", "options": "Viewer\nEditor\nMaintainer\nOwner", "reqd": 1, "in_list_view": 1}
+ ]
+}

@@ -18,6 +18,12 @@
   "is_group_page",
   "documentation_section",
   "content",
+  "review_status",
+  "stale",
+  "current_version",
+  "source_path",
+  "source_identity",
+  "source_fingerprint",
   "section_break_twyn",
   "linked_pages"
  ],
@@ -109,6 +115,41 @@
    "label": "Commit Docs",
    "options": "Commit Docs",
    "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "review_status",
+   "fieldtype": "Select",
+   "label": "Review Status",
+   "options": "Draft\nNeeds Review\nIn Review\nApproved\nPublished"
+  },
+  {
+   "default": "0",
+   "fieldname": "stale",
+   "fieldtype": "Check",
+   "label": "Stale",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_version",
+   "fieldtype": "Int",
+   "label": "Current Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_path",
+   "fieldtype": "Data",
+   "label": "Source Markdown Path"
+  },
+  {
+   "fieldname": "source_identity",
+   "fieldtype": "Data",
+   "label": "Source Component"
+  },
+  {
+   "fieldname": "source_fingerprint",
+   "fieldtype": "Data",
+   "label": "Source Fingerprint"
   }
  ],
  "grid_page_length": 50,

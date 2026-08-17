@@ -57,7 +57,7 @@ bench new-site my-site.localhost
 bench --site my-site.localhost install-app commit
 ```
 
-For upgrades from an earlier release, read [MIGRATION_V2.md](MIGRATION_V2.md).
+For upgrades from an earlier release, read [MIGRATION_V3.md](MIGRATION_V3.md).
 Version 2.0 changes API permissions, public Markdown rendering, OAuth state
 handling, and branch scanning storage.
 
@@ -102,7 +102,26 @@ It takes care of installation, setup, upgrades, monitoring, maintenance, and sup
 - **Docs Dashboard**: View and manage all your documentation in one place.
 - <img width="1510" alt="image" src="https://github.com/user-attachments/assets/dff479e6-10e4-44e8-b1dc-838071456882" />
 
-- **MDX Support**: Write JavaScript and React components in your Markdown files.
+- **Safe Markdown Publishing**: Publish rich GFM and mathematical documentation without executing stored JavaScript.
 - <img width="1510" alt="image" src="https://github.com/user-attachments/assets/66797334-c07a-452c-9c27-7157f41c5f1a" />
+
+## Commit Intelligence
+
+Commit 3 adds continuous Frappe-specific engineering intelligence:
+
+- Stable inventories for whitelisted APIs, DocTypes, hooks, dependencies,
+  portal routes, and frontend API consumers.
+- Snapshot comparisons, breaking-change detection, release notes, risk scores,
+  customizable policies, findings, suppressions, and audit history.
+- GitHub App webhooks and pull-request checks with blocking policy support.
+- Project teams with Viewer, Editor, Maintainer, and Owner access levels.
+- Versioned docs-as-code import, export, pull requests, stale-page detection,
+  redirects, unified search, and usage analytics.
+- Encrypted API environments, saved collections, assertions, execution history,
+  and scheduled smoke tests.
+- Architecture relationships and notification delivery through email or signed
+  webhooks.
+
+See [INTELLIGENCE.md](INTELLIGENCE.md) for configuration and workflow details.
 
 - **Customizable**: Tailor the tool to fit your specific needs and preferences.

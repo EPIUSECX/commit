@@ -15,6 +15,7 @@ const Sidebar = lazy(() => import('./pages/features/docs/Sidebar/DashboardSideba
 const DocsSettings = lazy(() => import('./pages/features/docs/Settings/DocsSettings').then(module => ({ default: module.DocsSettings })))
 const DashboardNavbar = lazy(() => import('./pages/features/docs/Navbar/DashboardNavbar').then(module => ({ default: module.DashboardNavbar })))
 const DashboardFooter = lazy(() => import('./pages/features/docs/Footer/DashboardFooter').then(module => ({ default: module.DashboardFooter })))
+const Intelligence = lazy(() => import('./pages/features/intelligence/Intelligence'))
 
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
           <Route path="/meta-viewer/:ID" element={<AppAPIViewerContainer />} />
           <Route path='/meta-erd/:ID' element={<ERDViewer />} />
           <Route path='/meta-erd/create' element={<CreateERD />} />
+          <Route path='/intelligence/:ID' element={<Intelligence />} />
           <Route path='/docs' element={<Navigate to={'/'} />} />
           <Route path='/docs/:ID' element={<ViewDocs />} >
             <Route index element={<Navigate to={'overview'} />} />

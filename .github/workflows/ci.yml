@@ -36,3 +36,4 @@ jobs:
       - run: pip install ruff
       - run: ruff check commit
       - run: python -m compileall -q commit
+      - run: python -m unittest -v commit.tests.test_intelligence

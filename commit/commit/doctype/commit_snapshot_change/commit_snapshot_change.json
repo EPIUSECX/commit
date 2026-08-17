@@ -1,0 +1,17 @@
+{
+ "doctype": "DocType", "name": "Commit Snapshot Change", "module": "commit", "autoname": "hash", "engine": "InnoDB",
+ "field_order": ["snapshot", "component_type", "identity", "change_type", "severity", "breaking", "summary", "before_definition", "after_definition"],
+ "fields": [
+  {"fieldname": "snapshot", "fieldtype": "Link", "label": "Snapshot", "options": "Commit Scan Snapshot", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "component_type", "fieldtype": "Data", "label": "Component Type", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "identity", "fieldtype": "Data", "label": "Identity", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "change_type", "fieldtype": "Select", "label": "Change", "options": "Added\nModified\nRemoved", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "severity", "fieldtype": "Select", "label": "Severity", "options": "Info\nLow\nMedium\nHigh\nCritical", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "breaking", "fieldtype": "Check", "label": "Breaking"},
+  {"fieldname": "summary", "fieldtype": "Small Text", "label": "Summary"},
+  {"fieldname": "before_definition", "fieldtype": "JSON", "label": "Before"},
+  {"fieldname": "after_definition", "fieldtype": "JSON", "label": "After"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}, {"role": "Commit Project Member", "read": 1, "report": 1}],
+ "sort_field": "creation", "sort_order": "DESC"
+}

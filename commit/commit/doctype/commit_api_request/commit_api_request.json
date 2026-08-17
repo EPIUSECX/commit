@@ -1,0 +1,14 @@
+{
+ "doctype": "DocType", "name": "Commit API Request", "module": "commit", "istable": 1, "editable_grid": 1,
+ "field_order": ["request_name", "method", "path", "headers", "parameters", "body", "assertions", "enabled"],
+ "fields": [
+  {"fieldname": "request_name", "fieldtype": "Data", "label": "Name", "reqd": 1, "in_list_view": 1},
+  {"default": "GET", "fieldname": "method", "fieldtype": "Select", "label": "Method", "options": "GET\nPOST\nPUT\nPATCH\nDELETE", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "path", "fieldtype": "Data", "label": "Path", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "headers", "fieldtype": "JSON", "label": "Headers"},
+  {"fieldname": "parameters", "fieldtype": "JSON", "label": "Parameters"},
+  {"fieldname": "body", "fieldtype": "Code", "label": "JSON Body"},
+  {"fieldname": "assertions", "fieldtype": "JSON", "label": "Assertions", "description": "Array of status, JSON path, contains, or latency assertions"},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "in_list_view": 1}
+ ]
+}

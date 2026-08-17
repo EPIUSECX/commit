@@ -13,7 +13,13 @@
   "authorization_uri",
   "token_uri",
   "redirect_uri",
-  "scopes"
+  "scopes",
+  "github_app_id",
+  "installation_id",
+  "private_key",
+  "installation_token",
+  "webhook_secret",
+  "webhook_enabled"
  ],
  "fields": [
   {
@@ -58,6 +64,38 @@
    "fieldname": "github_app_name",
    "fieldtype": "Data",
    "label": "Github App name"
+  },
+  {
+   "fieldname": "github_app_id",
+   "fieldtype": "Data",
+   "label": "GitHub App ID"
+  },
+  {
+   "fieldname": "installation_token",
+   "fieldtype": "Password",
+   "label": "Installation Token",
+   "description": "Short-lived token used to publish check runs and access private repositories"
+  },
+  {
+   "fieldname": "installation_id",
+   "fieldtype": "Data",
+   "label": "Installation ID"
+  },
+  {
+   "fieldname": "private_key",
+   "fieldtype": "Password",
+   "label": "GitHub App Private Key"
+  },
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook Secret"
+  },
+  {
+   "default": "0",
+   "fieldname": "webhook_enabled",
+   "fieldtype": "Check",
+   "label": "Enable GitHub Webhooks"
   }
  ],
  "index_web_pages_for_search": 1,

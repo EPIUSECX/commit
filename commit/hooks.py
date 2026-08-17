@@ -81,13 +81,37 @@ app_license = "AGPL-3.0-or-later"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"Commit Project": "commit.intelligence.permissions.project_query",
+	"Commit Project Branch": "commit.intelligence.permissions.branch_query",
+	"Commit Scan Snapshot": "commit.intelligence.permissions.snapshot_query",
+	"Commit Discovered Component": "commit.intelligence.permissions.component_query",
+	"Commit Discovered API": "commit.intelligence.permissions.discovered_api_query",
+	"Commit Snapshot Change": "commit.intelligence.permissions.change_query",
+	"Commit Finding": "commit.intelligence.permissions.finding_query",
+	"Commit API Collection": "commit.intelligence.permissions.api_collection_query",
+	"Commit API Environment": "commit.intelligence.permissions.api_environment_query",
+	"Commit Notification Endpoint": "commit.intelligence.permissions.notification_query",
+	"Commit Policy": "commit.intelligence.permissions.policy_query",
+	"Commit Audit Event": "commit.intelligence.permissions.audit_query",
+	"Commit API Test Run": "commit.intelligence.permissions.test_run_query",
+	"Commit Search Entry": "commit.intelligence.permissions.search_entry_query",
+}
+
+has_permission = {
+	"Commit Project": "commit.intelligence.permissions.has_project_permission",
+	"Commit Project Branch": "commit.intelligence.permissions.has_branch_permission",
+	"Commit Scan Snapshot": "commit.intelligence.permissions.has_snapshot_permission",
+	"Commit Discovered Component": "commit.intelligence.permissions.has_snapshot_child_permission",
+	"Commit Discovered API": "commit.intelligence.permissions.has_snapshot_child_permission",
+	"Commit Snapshot Change": "commit.intelligence.permissions.has_snapshot_child_permission",
+	"Commit Finding": "commit.intelligence.permissions.has_finding_permission",
+	"Commit API Collection": "commit.intelligence.permissions.has_project_link_permission",
+	"Commit API Environment": "commit.intelligence.permissions.has_project_link_permission",
+	"Commit Notification Endpoint": "commit.intelligence.permissions.has_project_link_permission",
+	"Commit Policy": "commit.intelligence.permissions.has_project_link_permission",
+	"Commit Search Entry": "commit.intelligence.permissions.has_search_entry_permission",
+}
 
 # DocType Class
 # ---------------
@@ -117,14 +141,16 @@ scheduler_events = {
 # 		"commit.tasks.all"
 # 	],
 	"daily": [
-		"commit.tasks.refresh_scheduled_branches"
+		"commit.tasks.refresh_scheduled_branches",
+		"commit.tasks.run_daily_api_tests",
+		"commit.tasks.maintain_intelligence_data"
 	],
-# 	"hourly": [
-# 		"commit.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"commit.tasks.weekly"
-# 	],
+	"hourly": [
+		"commit.tasks.run_hourly_api_tests"
+	],
+	"weekly": [
+		"commit.tasks.run_weekly_api_tests"
+	],
 # 	"monthly": [
 # 		"commit.tasks.monthly"
 # 	],

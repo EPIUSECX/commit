@@ -1,0 +1,17 @@
+{
+ "doctype": "DocType", "name": "Commit Policy", "module": "commit", "autoname": "format:{project}-{rule_name}", "engine": "InnoDB", "track_changes": 1,
+ "field_order": ["project", "rule_name", "component_type", "severity", "condition", "message", "remediation", "blocking", "enabled"],
+ "fields": [
+  {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Commit Project", "in_list_view": 1},
+  {"fieldname": "rule_name", "fieldtype": "Data", "label": "Rule Name", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "component_type", "fieldtype": "Select", "label": "Component Type", "options": "API\nDocType\nHook\nDependency\nConsumer\nPortal Route", "reqd": 1},
+  {"default": "Medium", "fieldname": "severity", "fieldtype": "Select", "label": "Severity", "options": "Info\nLow\nMedium\nHigh\nCritical", "reqd": 1},
+  {"fieldname": "condition", "fieldtype": "JSON", "label": "Condition", "description": "Example: {\"path\": \"allow_guest\", \"operator\": \"equals\", \"value\": true}", "reqd": 1},
+  {"fieldname": "message", "fieldtype": "Data", "label": "Finding Message", "reqd": 1},
+  {"fieldname": "remediation", "fieldtype": "Small Text", "label": "Remediation"},
+  {"fieldname": "blocking", "fieldtype": "Check", "label": "Block Pull Requests"},
+  {"default": "1", "fieldname": "enabled", "fieldtype": "Check", "label": "Enabled"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}, {"role": "Commit Project Member", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}],
+ "sort_field": "modified", "sort_order": "DESC"
+}

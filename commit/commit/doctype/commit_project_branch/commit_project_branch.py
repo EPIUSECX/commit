@@ -12,11 +12,14 @@ from frappe.model.document import Document
 from frappe.utils import now
 
 from commit.api.generate_documentation import generate_docs_for_apis
-from commit.commit.code_analysis.apis import find_all_occurrences_of_whitelist
 from commit.commit.code_analysis.doctypes import (
     get_doctype_json,
     get_doctypes_in_module,
 )
+from commit.intelligence.audit import record_event
+from commit.intelligence.github import git_auth_environment
+from commit.intelligence.notifications import notify
+from commit.intelligence.service import persist_repository_scan
 from commit.security import get_permitted_doc
 
 
@@ -83,24 +86,27 @@ class CommitProjectBranch(Document):
 
         folder_path = self.path_to_folder
 
-        repo = git.Repo.clone_from(
-            repo_url, folder_path, branch=self.branch_name, single_branch=True
-        )
+        with git_auth_environment() as env:
+            clone_options = {"branch": self.branch_name, "single_branch": True}
+            if env:
+                clone_options["env"] = env
+            repo = git.Repo.clone_from(repo_url, folder_path, **clone_options)
         self.last_fetched = frappe.utils.now_datetime()
         self.commit_hash = repo.head.object.hexsha
 
     def fetch_repo(self):
         previous_hash = self.commit_hash
         repo = git.Repo(self.path_to_folder)
-        repo.remotes.origin.fetch()
+        with git_auth_environment() as env:
+            fetch_options = {"env": env} if env else {}
+            repo.remotes.origin.fetch(**fetch_options)
 
-        # Force fast-forward only to avoid merge commits
-        try:
-            # Try fast-forward pull
-            repo.git.pull("--ff-only")
-        except Exception:
-            # If fast-forward not possible, reset to remote branch
-            repo.git.reset("--hard", "origin/" + self.branch_name)
+            # Force fast-forward only to avoid merge commits
+            try:
+                repo.git.pull("--ff-only", **fetch_options)
+            except Exception:
+                # If fast-forward not possible, reset to remote branch
+                repo.git.reset("--hard", "origin/" + self.branch_name)
 
         self.last_fetched = now()
         self.commit_hash = repo.head.object.hexsha
@@ -127,56 +133,25 @@ class CommitProjectBranch(Document):
             self.doctype_module_map = doctype_module_map
 
     def find_all_apis(self):
-        apis = find_all_occurrences_of_whitelist(self.path_to_folder, self.app_name)
-        # Convert list to string and save to database
-        self.whitelisted_apis = {"apis": apis}
-        self.persist_scan_snapshot(apis)
-        return apis
-
-    def persist_scan_snapshot(self, apis):
-        """Persist queryable scan results while retaining the legacy JSON cache."""
-        snapshot = frappe.get_doc(
-            {
-                "doctype": "Commit Scan Snapshot",
-                "project_branch": self.name,
-                "commit_hash": self.commit_hash,
-                "status": "Running",
-                "initiated_by": frappe.session.user,
-                "started_on": frappe.utils.now_datetime(),
-            }
-        ).insert(ignore_permissions=True)
-
-        root = Path(self.path_to_folder).resolve()
-        for api in apis:
-            source_path = Path(api.get("file", "")).resolve()
-            try:
-                relative_path = str(source_path.relative_to(root))
-            except ValueError:
-                continue
-            definition = dict(api)
-            definition["file"] = relative_path
-            frappe.get_doc(
-                {
-                    "doctype": "Commit Discovered API",
-                    "snapshot": snapshot.name,
-                    "api_path": api.get("api_path"),
-                    "function_name": api.get("name"),
-                    "file_path": relative_path,
-                    "request_methods": api.get("request_types") or [],
-                    "allow_guest": api.get("allow_guest", 0),
-                    "xss_safe": api.get("xss_safe", 0),
-                    "block_start": api.get("block_start"),
-                    "block_end": api.get("block_end"),
-                    "definition": definition,
-                }
-            ).insert(ignore_permissions=True)
-
-        snapshot.status = "Completed"
-        snapshot.completed_on = frappe.utils.now_datetime()
-        snapshot.api_count = len(apis)
-        snapshot.save(ignore_permissions=True)
-        self.latest_scan_snapshot = snapshot.name
-        self.scan_status = "Completed"
+        snapshot, changes, findings = persist_repository_scan(self)
+        record_event(
+            "scan.completed",
+            project=self.project,
+            project_branch=self.name,
+            details={"snapshot": snapshot.name, "changes": len(changes), "findings": len(findings)},
+        )
+        notify(
+            self.project,
+            "scan.completed",
+            {"branch": self.name, "snapshot": snapshot.name, "risk_score": snapshot.risk_score},
+        )
+        critical = [finding for finding in findings if finding.get("severity") == "Critical"]
+        if critical:
+            notify(self.project, "finding.critical", {"branch": self.name, "snapshot": snapshot.name, "findings": critical})
+        stale_sources = [change["identity"] for change in changes if change["change_type"] != "Added"]
+        if stale_sources:
+            notify(self.project, "docs.stale", {"branch": self.name, "snapshot": snapshot.name, "sources": stale_sources})
+        return json.loads(self.whitelisted_apis).get("apis", []) if isinstance(self.whitelisted_apis, str) else self.whitelisted_apis.get("apis", [])
 
     def get_whitelisted_apis_code(self):
         apis = []
@@ -264,7 +239,7 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
             user=initiated_by,
         )
 
-        if force_fetch or (Path(doc.path_to_folder) / ".git").is_dir():
+        if (Path(doc.path_to_folder) / ".git").is_dir():
             changed = doc.fetch_repo()
         else:
             doc.clone_repo()
@@ -296,6 +271,8 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
 
         if changed:
             doc.find_all_apis()
+        else:
+            doc.scan_status = "Completed"
 
         # doc.get_whitelisted_apis_code()
         doc.save()
@@ -321,8 +298,8 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
         frappe.publish_realtime(
             "commit_branch_creation_error",
             {
-                "branch_name": doc.branch_name,
-                "project": doc.project,
+                "branch_name": doc.branch_name if "doc" in locals() else project_branch,
+                "project": doc.project if "doc" in locals() else None,
                 "error": {
                     "exception": frappe.get_traceback(),
                     "_server_messages": json.dumps(messages),
@@ -348,6 +325,11 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
                         "error": frappe.get_traceback()[-10000:],
                     }
                 ).insert(ignore_permissions=True)
+            record_event("scan.failed", project=doc.project, project_branch=doc.name, details={"error": frappe.get_traceback()[-2000:]}, user=initiated_by)
+            try:
+                notify(doc.project, "scan.failed", {"branch": doc.name, "error": frappe.get_traceback()[-2000:]})
+            except Exception:
+                frappe.log_error(frappe.get_traceback(), "Commit scan failure notification failed")
         frappe.log_error(frappe.get_traceback(), "Commit branch scan failed")
 
         # raise e

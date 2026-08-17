@@ -1,0 +1,18 @@
+{
+ "doctype": "DocType", "name": "Commit API Test Run", "module": "commit", "autoname": "hash", "engine": "InnoDB",
+ "field_order": ["collection", "environment", "status", "started_on", "completed_on", "duration_ms", "passed", "failed", "results", "triggered_by"],
+ "fields": [
+  {"fieldname": "collection", "fieldtype": "Link", "label": "Collection", "options": "Commit API Collection", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "environment", "fieldtype": "Link", "label": "Environment", "options": "Commit API Environment"},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Running\nPassed\nFailed\nError", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "started_on", "fieldtype": "Datetime", "label": "Started On"},
+  {"fieldname": "completed_on", "fieldtype": "Datetime", "label": "Completed On"},
+  {"fieldname": "duration_ms", "fieldtype": "Int", "label": "Duration (ms)"},
+  {"fieldname": "passed", "fieldtype": "Int", "label": "Passed"},
+  {"fieldname": "failed", "fieldtype": "Int", "label": "Failed"},
+  {"fieldname": "results", "fieldtype": "JSON", "label": "Results"},
+  {"fieldname": "triggered_by", "fieldtype": "Link", "label": "Triggered By", "options": "User"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}, {"role": "Commit Project Member", "read": 1, "report": 1}],
+ "sort_field": "creation", "sort_order": "DESC"
+}

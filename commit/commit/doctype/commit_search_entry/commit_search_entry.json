@@ -1,0 +1,17 @@
+{
+ "doctype": "DocType", "name": "Commit Search Entry", "module": "commit", "autoname": "hash", "engine": "InnoDB",
+ "field_order": ["entry_type", "source_doctype", "source_name", "title", "content", "route", "project", "project_branch", "is_public"],
+ "fields": [
+  {"fieldname": "entry_type", "fieldtype": "Select", "label": "Type", "options": "Documentation\nAPI\nDocType\nHook\nDependency\nFinding", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "source_doctype", "fieldtype": "Data", "label": "Source DocType"},
+  {"fieldname": "source_name", "fieldtype": "Data", "label": "Source Name"},
+  {"fieldname": "title", "fieldtype": "Data", "label": "Title", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "content", "fieldtype": "Long Text", "label": "Search Content"},
+  {"fieldname": "route", "fieldtype": "Data", "label": "Route"},
+  {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Commit Project"},
+  {"fieldname": "project_branch", "fieldtype": "Link", "label": "Project Branch", "options": "Commit Project Branch"},
+  {"fieldname": "is_public", "fieldtype": "Check", "label": "Public"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1, "create": 1, "write": 1, "delete": 1}, {"role": "Commit Project Member", "read": 1}],
+ "sort_field": "modified", "sort_order": "DESC"
+}

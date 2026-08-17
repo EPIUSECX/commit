@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from frappe.model.document import Document
 
 from commit.api.preview import save_preview_screenshot
+from commit.intelligence.docs import create_version
 
 
 class CommitDocsPage(Document):
@@ -33,6 +34,13 @@ class CommitDocsPage(Document):
                         docname=commit_docs.name,
                         field="preview_image",
                     )
+
+    def after_insert(self):
+        create_version(self, "Initial version")
+
+    def on_update(self):
+        if self.has_value_changed("content"):
+            create_version(self, "Content updated")
 
     def get_docs_url(self):
         """
@@ -172,6 +180,16 @@ def get_commit_docs_page(name):
             frappe.throw("You are not allowed to view this page", frappe.PermissionError)
     else:
         doc.check_permission("read")
+
+    frappe.get_doc(
+        {
+            "doctype": "Commit Analytics Event",
+            "event_type": "Page View",
+            "target_type": "Commit Docs Page",
+            "target": doc.name,
+            "user": None if user == "Guest" else user,
+        }
+    ).insert(ignore_permissions=True)
 
     def process_codeblocks(md):
         # 1. Remove code fences for ```JSX blocks (render as HTML)

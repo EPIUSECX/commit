@@ -11,7 +11,8 @@ import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { Label } from '@/components/ui/label';
 import { useEffect, useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { EllipsisVertical, RefreshCcw, Trash } from 'lucide-react';
+import { BrainCircuit, EllipsisVertical, RefreshCcw, Trash } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mutate: KeyedMutator<{ message: ProjectData[]; }> }) => {
     const { call, loading: syncLoading, reset: callReset } = useFrappePostCall<{ message: any }>('commit.commit.doctype.commit_project_branch.commit_project_branch.fetch_repo');
@@ -92,6 +93,7 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
                             frequency={branch.frequency}
                         />
                         <ActionDropdown
+                            branchName={branch.name}
                             syncLoading={syncLoading || scanInProgress}
                             onSync={handleSync}
                             deleteLoading={deleteLoading}
@@ -100,6 +102,9 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
                     </div>
                 ) : (
                     <>
+                            <Button asChild className="flex gap-2 text-sm" variant="outline" size="sm">
+                                <Link to={`/intelligence/${branch.name}`}><BrainCircuit size={12} />Intelligence</Link>
+                            </Button>
                             <SyncButton loading={syncLoading || scanInProgress} onSync={handleSync} />
                             <FrequencyPopover
                                 open={open}
@@ -208,11 +213,13 @@ const DeleteButton = ({ loading, onDelete }: { loading: boolean, onDelete: () =>
 );
 
 const ActionDropdown = ({
+    branchName,
     syncLoading,
     onSync,
     deleteLoading,
     onDelete,
 }: {
+    branchName: string,
     syncLoading: boolean,
     onSync: () => void,
     deleteLoading: boolean,
@@ -230,6 +237,9 @@ const ActionDropdown = ({
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className='mr-8'>
+            <DropdownMenuItem asChild>
+                <Link to={`/intelligence/${branchName}`}><BrainCircuit size={12} className="mr-2" />Intelligence</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onSync} disabled={syncLoading}>
                 <RefreshCcw size={12} className={syncLoading ? 'animate-spin mr-2' : 'mr-2'} />
                 Fetch latest code

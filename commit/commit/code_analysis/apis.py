@@ -265,17 +265,29 @@ def get_api_details(
                 + "."
                 + api_details.get("name"),
             }
-            (
-                documentation,
-                last_updated,
-                is_published,
-                published_on,
-                publish_by,
-                publish_id,
-                published_route,
-            ) = get_documentation_from_branch_documentation(
-                app_name, obj.get("name"), obj.get("api_path")
-            )
+            documentation = ""
+            last_updated = None
+            is_published = False
+            published_on = None
+            publish_by = None
+            publish_id = None
+            published_route = None
+            try:
+                (
+                    documentation,
+                    last_updated,
+                    is_published,
+                    published_on,
+                    publish_by,
+                    publish_id,
+                    published_route,
+                ) = get_documentation_from_branch_documentation(
+                    app_name, obj.get("name"), obj.get("api_path")
+                )
+            except Exception:
+                # API discovery must still work during initial installation,
+                # migrations, and temporary documentation-store failures.
+                pass
             obj["documentation"] = documentation
             obj["last_updated"] = last_updated
             obj["is_published"] = is_published

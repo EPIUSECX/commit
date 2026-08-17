@@ -1,0 +1,12 @@
+{
+ "doctype": "DocType", "name": "Commit Audit Event", "module": "commit", "autoname": "hash", "engine": "InnoDB",
+ "field_order": ["action", "user", "project", "project_branch", "details"],
+ "fields": [
+  {"fieldname": "action", "fieldtype": "Data", "label": "Action", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User", "in_list_view": 1},
+  {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Commit Project"},
+  {"fieldname": "project_branch", "fieldtype": "Link", "label": "Project Branch", "options": "Commit Project Branch"},
+  {"fieldname": "details", "fieldtype": "JSON", "label": "Details"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1}], "sort_field": "creation", "sort_order": "DESC"
+}

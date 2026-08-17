@@ -11,7 +11,8 @@
   "organization_name",
   "github_org",
   "image",
-  "about"
+  "about",
+  "members"
  ],
  "fields": [
   {
@@ -39,6 +40,12 @@
    "fieldname": "about",
    "fieldtype": "Data",
    "label": "About"
+  },
+  {
+   "fieldname": "members",
+   "fieldtype": "Table",
+   "label": "Members",
+   "options": "Commit Organization Member"
   }
  ],
  "image_field": "image",

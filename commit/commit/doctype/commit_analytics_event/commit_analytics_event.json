@@ -1,0 +1,15 @@
+{
+ "doctype": "DocType", "name": "Commit Analytics Event", "module": "commit", "autoname": "hash", "engine": "InnoDB",
+ "field_order": ["event_type", "project", "project_branch", "target_type", "target", "query", "user", "details"],
+ "fields": [
+  {"fieldname": "event_type", "fieldtype": "Select", "label": "Event", "options": "Page View\nSearch\nSearch Miss\nAPI Test", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "project", "fieldtype": "Link", "label": "Project", "options": "Commit Project"},
+  {"fieldname": "project_branch", "fieldtype": "Link", "label": "Project Branch", "options": "Commit Project Branch"},
+  {"fieldname": "target_type", "fieldtype": "Data", "label": "Target Type"},
+  {"fieldname": "target", "fieldtype": "Data", "label": "Target"},
+  {"fieldname": "query", "fieldtype": "Data", "label": "Query"},
+  {"fieldname": "user", "fieldtype": "Link", "label": "User", "options": "User"},
+  {"fieldname": "details", "fieldtype": "JSON", "label": "Details"}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1, "report": 1}], "sort_field": "creation", "sort_order": "DESC"
+}

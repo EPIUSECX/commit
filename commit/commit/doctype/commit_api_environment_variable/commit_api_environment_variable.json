@@ -1,0 +1,9 @@
+{
+ "doctype": "DocType", "name": "Commit API Environment Variable", "module": "commit", "istable": 1, "editable_grid": 1,
+ "field_order": ["key", "value", "secret"],
+ "fields": [
+  {"fieldname": "key", "fieldtype": "Data", "label": "Key", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "value", "fieldtype": "Password", "label": "Value", "in_list_view": 1},
+  {"default": "1", "fieldname": "secret", "fieldtype": "Check", "label": "Secret", "in_list_view": 1}
+ ]
+}

@@ -15,7 +15,10 @@
   "image",
   "banner_image",
   "path_to_folder",
-  "description"
+  "description",
+  "docs_path",
+  "default_branch",
+  "policy_mode"
  ],
  "fields": [
   {
@@ -66,6 +69,25 @@
    "fieldtype": "Data",
    "label": "Display Name",
    "reqd": 1
+  },
+  {
+   "default": "docs",
+   "fieldname": "docs_path",
+   "fieldtype": "Data",
+   "label": "Documentation Path"
+  },
+  {
+   "default": "main",
+   "fieldname": "default_branch",
+   "fieldtype": "Data",
+   "label": "Default Branch"
+  },
+  {
+   "default": "Advisory",
+   "fieldname": "policy_mode",
+   "fieldtype": "Select",
+   "label": "Policy Mode",
+   "options": "Advisory\nBlocking"
   }
  ],
  "image_field": "image",
