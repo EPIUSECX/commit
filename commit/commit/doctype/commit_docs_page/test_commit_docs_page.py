@@ -32,9 +32,13 @@ class TestCommitDocsPageUnit(UnitTestCase):
             allow_guest=1,
             commit_docs="public-docs",
         )
-        with patch.object(frappe.session, "user", "Guest"):
+        previous_user = frappe.session.user
+        frappe.set_user("Guest")
+        try:
             with self.assertRaises(frappe.PermissionError):
                 get_commit_docs_page("secret-page")
+        finally:
+            frappe.set_user(previous_user)
 
     @patch("commit.commit.doctype.commit_docs_page.commit_docs_page.frappe.get_cached_doc")
     def test_guest_cannot_read_page_without_guest_access(self, get_cached_doc):
@@ -47,9 +51,13 @@ class TestCommitDocsPageUnit(UnitTestCase):
             allow_guest=0,
             commit_docs="public-docs",
         )
-        with patch.object(frappe.session, "user", "Guest"):
+        previous_user = frappe.session.user
+        frappe.set_user("Guest")
+        try:
             with self.assertRaises(frappe.PermissionError):
                 get_commit_docs_page("members-only-page")
+        finally:
+            frappe.set_user(previous_user)
 
 
 class TestCommitDocsPageIntegration(IntegrationTestCase):

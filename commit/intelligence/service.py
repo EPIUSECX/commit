@@ -18,6 +18,11 @@ def _json(value):
     return value or {}
 
 
+def _json_string(value):
+    """Return JSON field values in the scalar form expected by Frappe documents."""
+    return json.dumps(value, separators=(",", ":"), default=str)
+
+
 def _previous_components(snapshot):
     if not snapshot:
         return []
@@ -81,16 +86,26 @@ def persist_repository_scan(branch_doc, initiated_by=None):
     }).insert(ignore_permissions=True)
 
     for api in result["apis"]:
-        definition = next((item["definition"] for item in result["components"] if item["component_type"] == "API" and item["identity"] == api.get("api_path")), dict(api))
+        definition = next(
+            (
+                item["definition"]
+                for item in result["components"]
+                if item["component_type"] == "API"
+                and item["definition"].get("api_path") == api.get("api_path")
+                and item["definition"].get("block_start") == api.get("block_start")
+            ),
+            dict(api),
+        )
         frappe.get_doc({
             "doctype": "Commit Discovered API", "snapshot": snapshot.name,
             "api_path": api.get("api_path"), "function_name": api.get("name"),
-            "file_path": definition.get("file", ""), "request_methods": api.get("request_types") or [],
+            "file_path": definition.get("file", ""), "request_methods": _json_string(api.get("request_types") or []),
             "allow_guest": api.get("allow_guest", 0), "xss_safe": api.get("xss_safe", 0),
-            "block_start": api.get("block_start"), "block_end": api.get("block_end"), "definition": definition,
+            "block_start": api.get("block_start"), "block_end": api.get("block_end"), "definition": _json_string(definition),
         }).insert(ignore_permissions=True)
     for component in result["components"]:
-        frappe.get_doc({"doctype": "Commit Discovered Component", "snapshot": snapshot.name, **component}).insert(ignore_permissions=True)
+        component_values = {**component, "definition": _json_string(component.get("definition") or {})}
+        frappe.get_doc({"doctype": "Commit Discovered Component", "snapshot": snapshot.name, **component_values}).insert(ignore_permissions=True)
 
     changes = compare_components(_previous_components(previous_snapshot), result["components"])
     for change in changes:
@@ -99,7 +114,7 @@ def persist_repository_scan(branch_doc, initiated_by=None):
             "component_type": change["component_type"], "identity": change["identity"],
             "change_type": change["change_type"], "severity": change["severity"],
             "breaking": change["breaking"], "summary": change["summary"],
-            "before_definition": change["before"], "after_definition": change["after"],
+            "before_definition": _json_string(change["before"]), "after_definition": _json_string(change["after"]),
         }).insert(ignore_permissions=True)
 
     findings = evaluate_components(result["components"]) + evaluate_custom_policies(branch_doc.project, result["components"])
@@ -111,9 +126,15 @@ def persist_repository_scan(branch_doc, initiated_by=None):
             "rule": finding["rule"], "title": finding["title"], "severity": finding["severity"],
             "blocking": finding.get("blocking", 0), "status": "Open", "component_identity": finding["identity"],
             "file_path": component.get("file_path"), "line_number": component.get("line_number"),
-            "evidence": finding.get("evidence"), "remediation": finding.get("remediation") or remediation_for(finding["rule"]),
+            "evidence": _json_string(finding.get("evidence")) if isinstance(finding.get("evidence"), (dict, list)) else finding.get("evidence"),
+            "remediation": finding.get("remediation") or remediation_for(finding["rule"]),
         }).insert(ignore_permissions=True)
 
+    _create_search_entries(branch_doc.name, branch_doc.project, result["components"])
+    _mark_stale_docs(changes)
+    branch_doc.whitelisted_apis = _json_string({"apis": result["apis"]})
+    branch_doc.latest_scan_snapshot = snapshot.name
+    branch_doc.scan_status = "Completed"
     snapshot.status = "Completed"
     snapshot.completed_on = frappe.utils.now_datetime()
     snapshot.api_count = len(result["apis"])
@@ -123,11 +144,6 @@ def persist_repository_scan(branch_doc, initiated_by=None):
     snapshot.finding_count = len(findings)
     snapshot.risk_score = risk_score(changes, findings)
     snapshot.save(ignore_permissions=True)
-    _create_search_entries(branch_doc.name, branch_doc.project, result["components"])
-    _mark_stale_docs(changes)
-    branch_doc.whitelisted_apis = {"apis": result["apis"]}
-    branch_doc.latest_scan_snapshot = snapshot.name
-    branch_doc.scan_status = "Completed"
     return snapshot, changes, findings
 
 

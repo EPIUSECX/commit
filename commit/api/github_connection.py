@@ -34,8 +34,19 @@ def _headers(token: str | None = None) -> dict[str, str]:
 	return headers
 
 
-def _site_url(path: str = "") -> str:
-	return f"{frappe.utils.get_url().rstrip('/')}/{path.lstrip('/')}"
+def _public_base_url(candidate: str | None = None) -> str:
+	"""Prefer the browser's public HTTPS origin when Commit runs behind a tunnel."""
+	candidate = (candidate or "").strip().rstrip("/")
+	if candidate:
+		parsed = urlparse(candidate)
+		origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+		if origin and is_public_https_url(origin):
+			return origin
+	return frappe.utils.get_url().rstrip("/")
+
+
+def _site_url(path: str = "", base_url: str | None = None) -> str:
+	return f"{_public_base_url(base_url)}/{path.lstrip('/')}"
 
 
 def _redirect(location: str) -> None:
@@ -83,9 +94,11 @@ def is_public_https_url(url: str) -> bool:
 		return True
 
 
-def build_manifest(state: str) -> dict[str, Any]:
-	base_url = frappe.utils.get_url().rstrip("/")
-	webhook_url = _site_url("api/method/commit.api.github_webhook.github_webhook")
+def build_manifest(state: str, base_url: str | None = None) -> dict[str, Any]:
+	base_url = _public_base_url(base_url)
+	webhook_url = _site_url(
+		"api/method/commit.api.github_webhook.github_webhook", base_url
+	)
 	webhook_public = is_public_https_url(webhook_url)
 	host = re.sub(r"[^a-z0-9-]+", "-", (urlparse(base_url).hostname or "site").lower()).strip("-")
 	name = f"Commit {host[:18]} {state[:6]}"[:34]
@@ -93,9 +106,15 @@ def build_manifest(state: str) -> dict[str, Any]:
 		"name": name,
 		"url": base_url,
 		"description": "Repository intelligence, API documentation, checks, and policy automation from Commit.",
-		"redirect_url": _site_url("api/method/commit.api.github_connection.manifest_callback"),
-		"callback_urls": [_site_url("api/method/commit.api.github_connection.oauth_callback")],
-		"setup_url": _site_url("api/method/commit.api.github_connection.install_callback"),
+		"redirect_url": _site_url(
+			"api/method/commit.api.github_connection.manifest_callback", base_url
+		),
+		"callback_urls": [
+			_site_url("api/method/commit.api.github_connection.oauth_callback", base_url)
+		],
+		"setup_url": _site_url(
+			"api/method/commit.api.github_connection.install_callback", base_url
+		),
 		"setup_on_update": True,
 		# Public controls who may install the App, not repository visibility. It is
 		# required for one Commit site to connect a personal account and multiple orgs.
@@ -138,15 +157,20 @@ def _validate_manifest_config(config: dict[str, Any]) -> None:
 		)
 
 
-def _installation_url(settings, user: str) -> str:
-	state = _new_state("install", user)
+def _installation_url(settings, user: str, public_base_url: str | None = None) -> str:
+	state = _new_state("install", user, public_base_url=public_base_url)
 	base = settings.github_app_html_url or f"https://github.com/apps/{settings.github_app_slug}"
 	return f"{base.rstrip('/')}/installations/new?{urlencode({'state': state})}"
 
 
 @frappe.whitelist(methods=["POST"])
-def start_connection(force_new_app: bool = False, organization: str | None = None):
+def start_connection(
+	force_new_app: bool = False,
+	organization: str | None = None,
+	public_base_url: str | None = None,
+):
 	frappe.only_for("System Manager")
+	public_base_url = _public_base_url(public_base_url)
 	settings = frappe.get_single("Github Settings")
 	configured_app = bool(
 		settings.github_app_id
@@ -156,20 +180,26 @@ def start_connection(force_new_app: bool = False, organization: str | None = Non
 		and (settings.github_app_html_url or settings.github_app_slug)
 	)
 	if configured_app and not frappe.utils.cint(force_new_app):
-		return {"kind": "redirect", "url": _installation_url(settings, frappe.session.user)}
+		return {
+			"kind": "redirect",
+			"url": _installation_url(settings, frappe.session.user, public_base_url),
+		}
 
-	state = _new_state("manifest", frappe.session.user)
+	state = _new_state(
+		"manifest", frappe.session.user, public_base_url=public_base_url
+	)
 	return {
 		"kind": "manifest",
 		"action": manifest_create_url(organization),
 		"state": state,
-		"manifest": build_manifest(state),
+		"manifest": build_manifest(state, public_base_url),
 	}
 
 
 @frappe.whitelist(allow_guest=True)
 def manifest_callback(code: str | None = None, state: str | None = None):
 	payload = _consume_state(state, "manifest")
+	public_base_url = payload.get("public_base_url")
 	if not code:
 		frappe.throw("GitHub did not return an App manifest code.")
 	response = requests.post(
@@ -191,9 +221,13 @@ def manifest_callback(code: str | None = None, state: str | None = None):
 	settings.webhook_secret = config.get("webhook_secret")
 	settings.authorization_uri = OAUTH_AUTHORIZE_URL
 	settings.token_uri = OAUTH_TOKEN_URL
-	settings.redirect_uri = _site_url("api/method/commit.api.github_connection.oauth_callback")
+	settings.redirect_uri = _site_url(
+		"api/method/commit.api.github_connection.oauth_callback", public_base_url
+	)
 	settings.webhook_enabled = is_public_https_url(
-		_site_url("api/method/commit.api.github_webhook.github_webhook")
+		_site_url(
+			"api/method/commit.api.github_webhook.github_webhook", public_base_url
+		)
 	)
 	settings.setup_source = "GitHub App Manifest"
 	settings.installation_id = None
@@ -207,7 +241,7 @@ def manifest_callback(code: str | None = None, state: str | None = None):
 	# This callback is a GET redirect. Commit before sending the browser to GitHub,
 	# otherwise Frappe rolls back the credentials at the end of the request.
 	frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
-	_redirect(_installation_url(settings, payload["user"]))
+	_redirect(_installation_url(settings, payload["user"], public_base_url))
 
 
 def _app_installation(installation_id: str) -> dict[str, Any]:
@@ -237,6 +271,7 @@ def install_callback(installation_id: str | None = None, state: str | None = Non
 		payload["user"],
 		installation_id=str(installation_id),
 		setup_action=setup_action,
+		public_base_url=payload.get("public_base_url"),
 	)
 	params = urlencode(
 		{
@@ -455,7 +490,9 @@ def oauth_callback(code: str | None = None, state: str | None = None, error: str
 	)
 	# Persist the verified installation before redirecting back to the SPA.
 	frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
-	_redirect(_site_url("commit?github=connected"))
+	_redirect(
+		_site_url("commit?github=connected", payload.get("public_base_url"))
+	)
 
 
 @frappe.whitelist()

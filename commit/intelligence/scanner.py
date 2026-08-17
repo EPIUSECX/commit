@@ -7,6 +7,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 compatibility
+    import tomli as tomllib
+
 from commit.commit.code_analysis.apis import find_all_occurrences_of_whitelist
 
 API_CALL_PATTERN = re.compile(
@@ -40,6 +45,10 @@ def _component(kind: str, identity: str, name: str, path: str, definition: Any, 
 
 def scan_apis(root: Path, app_name: str) -> tuple[list[dict], list[dict]]:
     apis = find_all_occurrences_of_whitelist(str(root), app_name)
+    path_counts: dict[str, int] = {}
+    for api in apis:
+        path = api.get("api_path") or f"{app_name}.{api.get('name')}"
+        path_counts[path] = path_counts.get(path, 0) + 1
     components = []
     for api in apis:
         definition = dict(api)
@@ -51,6 +60,8 @@ def scan_apis(root: Path, app_name: str) -> tuple[list[dict], list[dict]]:
         except OSError:
             definition["source"] = ""
         identity = api.get("api_path") or f"{app_name}.{api.get('name')}"
+        if path_counts[identity] > 1:
+            identity = f"{identity}#L{api.get('block_start', 0)}"
         components.append(
             _component("API", identity, api.get("name") or identity, path, definition, api.get("block_start", 0))
         )
@@ -65,8 +76,12 @@ def scan_doctypes(root: Path, app_name: str) -> list[dict]:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if data.get("doctype") != "DocType" or not data.get("name"):
+        if not isinstance(data, dict) or data.get("doctype") != "DocType" or not data.get("name"):
             continue
+        fields = data.get("fields") if isinstance(data.get("fields"), list) else []
+        permissions = data.get("permissions") if isinstance(data.get("permissions"), list) else []
+        fields = [field for field in fields if isinstance(field, dict)]
+        permissions = [permission for permission in permissions if isinstance(permission, dict)]
         definition = {
             "name": data["name"],
             "module": data.get("module"),
@@ -79,13 +94,13 @@ def scan_doctypes(root: Path, app_name: str) -> list[dict]:
                     for key in ("fieldname", "fieldtype", "options", "reqd", "read_only", "unique")
                     if field.get(key) not in (None, 0, "")
                 }
-                for field in data.get("fields", [])
+                for field in fields
                 if field.get("fieldname")
             ],
-            "permissions": data.get("permissions", []),
+            "permissions": permissions,
         }
         components.append(_component("DocType", data["name"], data["name"], _relative(root, path), definition))
-        guest_permissions = [permission for permission in data.get("permissions", []) if permission.get("role") == "Guest"]
+        guest_permissions = [permission for permission in permissions if permission.get("role") == "Guest"]
         guest_methods = []
         if any(permission.get("read") for permission in guest_permissions):
             guest_methods.append("GET")
@@ -101,7 +116,7 @@ def scan_doctypes(root: Path, app_name: str) -> list[dict]:
             "request_types": ["GET", "POST", "PUT", "DELETE"],
             "allow_guest": any(permission.get("read") for permission in guest_permissions),
             "guest_methods": guest_methods,
-            "permissions": data.get("permissions", []),
+            "permissions": permissions,
             "documentation": "Frappe-generated DocType resource API",
         }
         components.append(_component("API", f"/api/resource/{data['name']}", f"{data['name']} Resource API", _relative(root, path), resource_definition))
@@ -142,10 +157,35 @@ def scan_dependencies(root: Path) -> list[dict]:
     pyproject = root / "pyproject.toml"
     if pyproject.exists():
         text = pyproject.read_text(encoding="utf-8")
-        for match in re.finditer(r'^[ \t]*["\']([A-Za-z0-9_.-]+)([^"\']*)["\'][,]?[ \t]*$', text, re.MULTILINE):
+        try:
+            pyproject_data = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            pyproject_data = {}
+
+        requirements: list[tuple[str, str]] = []
+        project = pyproject_data.get("project", {})
+        requirements.extend((item, "runtime") for item in project.get("dependencies", []) if isinstance(item, str))
+        for group, items in project.get("optional-dependencies", {}).items():
+            requirements.extend((item, f"optional:{group}") for item in items if isinstance(item, str))
+        for group, items in pyproject_data.get("dependency-groups", {}).items():
+            requirements.extend((item, f"group:{group}") for item in items if isinstance(item, str))
+        for name, constraint in pyproject_data.get("tool", {}).get("bench", {}).get("dev-dependencies", {}).items():
+            requirements.append((f"{name}{constraint}", "bench:dev"))
+
+        seen = set()
+        for requirement, group in requirements:
+            match = re.match(r"^\s*([A-Za-z0-9_.-]+)(?:\[[^]]+\])?(.*)$", requirement)
+            if not match:
+                continue
             name, constraint = match.group(1), match.group(2).strip()
-            definition = {"ecosystem": "python", "name": name, "constraint": constraint}
-            components.append(_component("Dependency", f"python:{name.lower()}", name, "pyproject.toml", definition, text[:match.start()].count("\n") + 1))
+            identity = f"python:{name.lower()}"
+            if identity in seen:
+                continue
+            seen.add(identity)
+            definition = {"ecosystem": "python", "name": name, "constraint": constraint, "group": group}
+            marker = text.find(f'"{requirement}"')
+            line_number = text[:marker].count("\n") + 1 if marker >= 0 else 0
+            components.append(_component("Dependency", identity, name, "pyproject.toml", definition, line_number))
     package = root / "package.json"
     if package.exists():
         try:
@@ -191,17 +231,25 @@ def scan_frontend_consumers(root: Path) -> list[dict]:
 
 
 def scan_portal_routes(root: Path, app_name: str) -> list[dict]:
-    components = []
     www = root / app_name / "www"
     if not www.exists():
-        return components
+        return []
+    routes: dict[str, list[dict]] = {}
     for path in www.glob("**/*"):
         if path.suffix not in {".py", ".html", ".md"} or path.name.startswith("_"):
             continue
         route = "/" + str(path.relative_to(www).with_suffix(""))
-        definition = {"route": route, "kind": path.suffix.lstrip(".")}
-        components.append(_component("Portal Route", route, route, _relative(root, path), definition))
-    return components
+        routes.setdefault(route, []).append({"path": _relative(root, path), "kind": path.suffix.lstrip(".")})
+    return [
+        _component(
+            "Portal Route",
+            route,
+            route,
+            sorted(files, key=lambda item: item["path"])[0]["path"],
+            {"route": route, "files": sorted(files, key=lambda item: item["path"])},
+        )
+        for route, files in sorted(routes.items())
+    ]
 
 
 def scan_commands(root: Path, app_name: str) -> list[dict]:

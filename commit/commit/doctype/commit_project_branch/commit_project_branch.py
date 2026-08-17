@@ -30,12 +30,14 @@ class CommitProjectBranch(Document):
         self.create_branch_folder()
 
     def after_insert(self):
+        self.db_set("scan_status", "Queued", update_modified=False)
         frappe.enqueue(
             method=background_fetch_process,
             is_async=True,
-            job_name="Fetch Project Branch",
             enqueue_after_commit=True,
             at_front=True,
+            deduplicate=True,
+            job_id=f"commit-branch-fetch-{self.name}",
             project_branch=self.name,
             initiated_by=frappe.session.user,
         )
@@ -239,6 +241,7 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
         doc = frappe.get_cached_doc("Commit Project Branch", project_branch)
         doc.scan_status = "Running"
         doc.db_set("scan_status", "Running", update_modified=False)
+        frappe.db.savepoint("commit_branch_scan")
         frappe.publish_realtime(
             "commit_branch_clone_repo",
             {
@@ -301,6 +304,7 @@ def background_fetch_process(project_branch, force_fetch=False, initiated_by=Non
         )
 
     except Exception:
+        frappe.db.rollback(save_point="commit_branch_scan")
         # throw the error and delete the document
         messages = [
             json.dumps({"message": "There was an error while fetching branch repo."})

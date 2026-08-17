@@ -224,7 +224,10 @@ export function ConfigurationOnboarding() {
 
     const connect = async () => {
         try {
-            const result = (await connection.call({ organization: githubOrganization.trim() })).message
+            const result = (await connection.call({
+                organization: githubOrganization.trim(),
+                public_base_url: window.location.origin,
+            })).message
             if (result.kind === "manifest") submitManifest(result)
             else window.location.assign(result.url)
         } catch (callError) {

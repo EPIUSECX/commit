@@ -28,6 +28,20 @@ class TestGithubConnection(TestCase):
 			"https://commit.example.com/api/method/commit.api.github_webhook.github_webhook",
 		)
 
+	@patch("commit.api.github_connection.frappe.utils.get_url", return_value="http://netcash.localhost")
+	def test_browser_tunnel_origin_is_used_for_all_manifest_callbacks(self, _get_url):
+		manifest = github_connection.build_manifest(
+			"abcdef123456", "https://example-tunnel.ngrok-free.app"
+		)
+
+		self.assertEqual(manifest["url"], "https://example-tunnel.ngrok-free.app")
+		self.assertTrue(manifest["redirect_url"].startswith(manifest["url"]))
+		self.assertTrue(manifest["callback_urls"][0].startswith(manifest["url"]))
+		self.assertTrue(manifest["setup_url"].startswith(manifest["url"]))
+		self.assertEqual(
+			manifest["hook_attributes"]["url"].split("/api/")[0], manifest["url"]
+		)
+
 	def test_public_url_detection_rejects_local_and_private_hosts(self):
 		self.assertFalse(github_connection.is_public_https_url("http://commit.example.com/hook"))
 		self.assertFalse(github_connection.is_public_https_url("https://site.localhost/hook"))
