@@ -198,7 +198,7 @@ def manifest_callback(code: str | None = None, state: str | None = None):
 	settings.setup_source = "GitHub App Manifest"
 	settings.installation_id = None
 	settings.installation_account = None
-	settings.installations = []
+	_store_connected_installations(settings, [])
 	settings.connected_on = None
 	settings.save(ignore_permissions=True)
 	if not settings.get_password("private_key", raise_exception=False):
@@ -301,6 +301,112 @@ def _connected_installations(settings=None) -> list[dict[str, Any]]:
 	return [item for item in items if item.get("id")]
 
 
+def _store_connected_installations(settings, installations: list[dict[str, Any]]) -> None:
+	"""Store JSON fields in the serialized form Frappe Document.save expects."""
+	settings.installations = json.dumps(installations)
+
+
+def _set_primary_installation(settings, installations: list[dict[str, Any]]) -> None:
+	primary = installations[-1] if installations else {}
+	settings.installation_id = primary.get("id")
+	settings.installation_account = primary.get("account")
+	settings.installation_account_type = primary.get("account_type")
+	settings.installation_repository_selection = primary.get("repository_selection")
+	settings.connected_on = now_datetime() if primary else None
+
+
+def _clear_installation_organizations(installation_id: str | None = None) -> None:
+	filters = {"github_installation_id": installation_id} if installation_id else {
+		"github_installation_id": ["is", "set"]
+	}
+	for organization in frappe.get_all("Commit Organization", filters=filters, pluck="name"):
+		frappe.db.set_value(
+			"Commit Organization",
+			organization,
+			"github_installation_id",
+			None,
+			update_modified=False,
+		)
+
+
+@frappe.whitelist()
+def list_installations():
+	"""Return non-secret GitHub App installation information for account management."""
+	frappe.only_for("System Manager")
+	settings = frappe.get_single("Github Settings")
+	installations = _connected_installations(settings)
+	for installation in installations:
+		installation["project_count"] = frappe.db.count(
+			"Commit Organization",
+			{"github_installation_id": str(installation["id"])},
+		)
+	return {
+		"app_name": settings.github_app_name,
+		"app_url": settings.github_app_html_url,
+		"app_created": bool(settings.github_app_id),
+		"installations": installations,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def disconnect_installation(installation_id: str):
+	"""Forget one installation locally while leaving projects and the GitHub App intact."""
+	frappe.only_for("System Manager")
+	installation_id = str(installation_id or "").strip()
+	settings = frappe.get_doc("Github Settings")
+	installations = _connected_installations(settings)
+	removed = next(
+		(item for item in installations if str(item.get("id")) == installation_id),
+		None,
+	)
+	if not removed:
+		frappe.throw("That GitHub installation is not connected to this Commit site.")
+	remaining = [
+		item for item in installations if str(item.get("id")) != installation_id
+	]
+	_store_connected_installations(settings, remaining)
+	_set_primary_installation(settings, remaining)
+	settings.save(ignore_permissions=True)
+	_clear_installation_organizations(installation_id)
+	record_event(
+		"github.disconnected",
+		details={"installation_id": installation_id, "account": removed.get("account")},
+	)
+	return {"disconnected": removed.get("account"), "remaining": len(remaining)}
+
+
+@frappe.whitelist(methods=["POST"])
+def reset_connection():
+	"""Forget the generated App and all installations so setup can start cleanly."""
+	frappe.only_for("System Manager")
+	settings = frappe.get_doc("Github Settings")
+	previous_app = settings.github_app_name
+	for field in (
+		"github_app_name",
+		"github_app_id",
+		"github_app_slug",
+		"github_app_html_url",
+		"client_id",
+		"client_secret",
+		"private_key",
+		"webhook_secret",
+		"installation_token",
+		"installation_id",
+		"installation_account",
+		"installation_account_type",
+		"installation_repository_selection",
+		"connected_on",
+		"setup_source",
+	):
+		settings.set(field, None)
+	_store_connected_installations(settings, [])
+	settings.webhook_enabled = 0
+	settings.save(ignore_permissions=True)
+	_clear_installation_organizations()
+	record_event("github.connection-reset", details={"app": previous_app})
+	return {"reset": True}
+
+
 @frappe.whitelist(allow_guest=True)
 def oauth_callback(code: str | None = None, state: str | None = None, error: str | None = None, **_kwargs):
 	payload = _consume_state(state, "oauth")
@@ -336,7 +442,7 @@ def oauth_callback(code: str | None = None, state: str | None = None, error: str
 	settings.installation_account = account.get("login")
 	settings.installation_account_type = account.get("type")
 	settings.installation_repository_selection = installation.get("repository_selection")
-	settings.installations = connected_installations
+	_store_connected_installations(settings, connected_installations)
 	settings.connected_on = now_datetime()
 	settings.webhook_enabled = is_public_https_url(
 		_site_url("api/method/commit.api.github_webhook.github_webhook")

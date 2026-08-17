@@ -33,6 +33,7 @@ def get_project_list_with_branches():
                 "image",
                 "banner_image",
                 "description",
+                "default_branch",
             ],
             order_by="creation desc",
         )
@@ -44,12 +45,33 @@ def get_project_list_with_branches():
                 fields=[
                     "branch_name",
                     "last_fetched",
+                    "commit_hash",
+                    "scan_status",
+                    "latest_scan_snapshot",
                     "modules",
                     "whitelisted_apis",
                     "name",
                     "frequency",
                 ],
             )
+            for branch in branches:
+                snapshot = branch.get("latest_scan_snapshot")
+                branch["intelligence"] = (
+                    frappe.db.get_value(
+                        "Commit Scan Snapshot",
+                        snapshot,
+                        [
+                            "risk_score",
+                            "finding_count",
+                            "breaking_change_count",
+                            "component_count",
+                            "completed_on",
+                        ],
+                        as_dict=True,
+                    )
+                    if snapshot
+                    else None
+                )
             project["branches"] = branches
         organization["projects"] = projects
 

@@ -13,6 +13,18 @@ def _latest_snapshot(branch):
 @frappe.whitelist()
 def get_overview(project_branch: str):
     project = require_branch_access(project_branch)
+    branch_details = frappe.db.get_value(
+        "Commit Project Branch",
+        project_branch,
+        ["branch_name", "commit_hash", "last_fetched", "scan_status", "frequency"],
+        as_dict=True,
+    )
+    project_details = frappe.db.get_value(
+        "Commit Project",
+        project,
+        ["name", "display_name", "repo_name", "org", "description"],
+        as_dict=True,
+    )
     snapshot_name = _latest_snapshot(project_branch)
     snapshot = frappe.get_doc("Commit Scan Snapshot", snapshot_name).as_dict() if snapshot_name else None
     snapshots = frappe.get_all(
@@ -23,9 +35,29 @@ def get_overview(project_branch: str):
     component_counts = []
     finding_counts = []
     if snapshot_name:
-        component_counts = frappe.get_all("Commit Discovered Component", filters={"snapshot": snapshot_name}, fields=["component_type", "count(name) as count"], group_by="component_type", order_by="count desc")
-        finding_counts = frappe.get_all("Commit Finding", filters={"snapshot": snapshot_name, "status": ["!=", "Resolved"]}, fields=["severity", "count(name) as count"], group_by="severity")
-    return {"project": project, "branch": project_branch, "snapshot": snapshot, "snapshots": snapshots, "component_counts": component_counts, "finding_counts": finding_counts}
+        component_counts = frappe.get_all(
+            "Commit Discovered Component",
+            filters={"snapshot": snapshot_name},
+            fields=["component_type", {"COUNT": "name", "as": "count"}],
+            group_by="component_type",
+            order_by="count desc",
+        )
+        finding_counts = frappe.get_all(
+            "Commit Finding",
+            filters={"snapshot": snapshot_name, "status": ["!=", "Resolved"]},
+            fields=["severity", {"COUNT": "name", "as": "count"}],
+            group_by="severity",
+        )
+    return {
+        "project": project,
+        "project_details": project_details,
+        "branch": project_branch,
+        "branch_details": branch_details,
+        "snapshot": snapshot,
+        "snapshots": snapshots,
+        "component_counts": component_counts,
+        "finding_counts": finding_counts,
+    }
 
 
 @frappe.whitelist()

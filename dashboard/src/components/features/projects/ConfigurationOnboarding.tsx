@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "@/components/ui/use-toast"
 import { useDebounce } from "@/hooks/useDebounce"
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk"
-import { Bell, Bot, Building2, Check, ChevronRight, ChevronsUpDown, ExternalLink, GitBranch, Github, Loader2, Lock, Settings, ShieldCheck, UserRound } from "lucide-react"
+import { Bell, Bot, Building2, Check, ChevronRight, ChevronsUpDown, GitBranch, Github, Loader2, Lock, Search, Settings, ShieldCheck, SlidersHorizontal, UserRound } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { GitHubConnectionManager } from "./GitHubConnectionManager"
 
 type Status = {
     github: boolean
@@ -81,6 +83,7 @@ function submitManifest(start: Extract<ConnectionStart, { kind: "manifest" }>) {
 
 function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, onOpenChange: (open: boolean) => void, onImported: () => void }) {
     const [selected, setSelected] = useState<Set<number>>(new Set())
+    const [query, setQuery] = useState("")
     const { data, error, isLoading, mutate } = useFrappeGetCall<{ message: Repository[] }>(
         "commit.api.github_connection.list_repositories",
         {},
@@ -90,9 +93,13 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
     const importer = useFrappePostCall<{ message: { created: number, repositories: unknown[] } }>("commit.api.github_connection.import_repositories")
     const repositories = data?.message ?? []
     const available = repositories.filter(repository => !repository.imported && !repository.archived)
+    const filtered = repositories.filter(repository => `${repository.full_name} ${repository.description || ""} ${repository.language || ""}`.toLowerCase().includes(query.toLowerCase()))
 
     useEffect(() => {
-        if (!open) setSelected(new Set())
+        if (!open) {
+            setSelected(new Set())
+            setQuery("")
+        }
     }, [open])
 
     const toggle = (id: number) => {
@@ -111,6 +118,7 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
             setSelected(new Set())
             await mutate()
             onImported()
+            onOpenChange(false)
         } catch (callError) {
             toast({ variant: "destructive", description: getErrorMessage(callError as never) || "Could not import repositories." })
         }
@@ -118,16 +126,21 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-4xl overflow-hidden p-0">
                 <DialogHeader>
-                    <DialogTitle>Import GitHub repositories</DialogTitle>
-                    <DialogDescription>Select repositories to create their Commit organization, project, and default branch automatically.</DialogDescription>
+                    <div className="border-b bg-muted/20 px-6 py-5"><DialogTitle>Import GitHub repositories</DialogTitle><DialogDescription className="mt-1">Select repositories to create their Commit organization, project, default branch, and first intelligence scan automatically.</DialogDescription></div>
                 </DialogHeader>
-                {error && <ErrorBanner error={error} />}
-                <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+                <div className="space-y-3 px-6">
+                    {error && <ErrorBanner error={error} />}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search repositories, owners, or languages…" className="pl-9" /></div>
+                        <Button variant="outline" size="sm" onClick={() => setSelected(new Set(filtered.filter(repository => !repository.imported && !repository.archived).map(repository => repository.id)))} disabled={!filtered.some(repository => !repository.imported && !repository.archived)}>Select visible</Button>
+                    </div>
+                </div>
+                <div className="mx-6 max-h-[48vh] space-y-2 overflow-y-auto pr-1">
                     {isLoading && <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading repositories…</div>}
-					{!isLoading && !error && repositories.length === 0 && <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No repositories are available to this installation. Add repository access in GitHub and try again.</div>}
-                    {repositories.map(repository => {
+                    {!isLoading && !error && filtered.length === 0 && <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{query ? "No repositories match your search." : "No repositories are available to connected installations. Add repository access in GitHub and try again."}</div>}
+                    {filtered.map(repository => {
                         const disabled = repository.imported || repository.archived
                         return (
                             <label key={repository.id} className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${disabled ? "bg-muted/40 opacity-70" : "cursor-pointer hover:border-gray-300 hover:bg-gray-50/70"}`}>
@@ -146,7 +159,7 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
                         )
                     })}
                 </div>
-                <DialogFooter className="items-center sm:justify-between">
+                <DialogFooter className="items-center border-t bg-muted/20 px-6 py-4 sm:justify-between">
                     <span className="text-xs text-muted-foreground">{available.length} available · {selected.size} selected</span>
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
@@ -163,6 +176,7 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
 
 export function ConfigurationOnboarding() {
     const [pickerOpen, setPickerOpen] = useState(false)
+    const [connectionManagerOpen, setConnectionManagerOpen] = useState(false)
     const [ownerSelectorOpen, setOwnerSelectorOpen] = useState(false)
     const [organizationQuery, setOrganizationQuery] = useState("")
     const [githubOrganization, setGithubOrganization] = useState("")
@@ -297,7 +311,7 @@ export function ConfigurationOnboarding() {
                                         {status.github_app_created ? "Finish GitHub setup" : "Connect GitHub"}
                                     </Button>
                                 )}
-                                <Button asChild size="sm" variant="ghost"><a href="/app/github-settings">Advanced <ExternalLink className="ml-1 h-3 w-3" /></a></Button>
+                                {status.github_app_created ? <Button size="sm" variant="ghost" onClick={() => setConnectionManagerOpen(true)}><SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />Connection settings</Button> : <Button asChild size="sm" variant="ghost"><a href="/app/github-settings">Advanced settings</a></Button>}
                             </span>
                         </span>
                     </div>
@@ -319,6 +333,7 @@ export function ConfigurationOnboarding() {
                 </CardContent>
             </Card>
             {status.github_connected && <RepositoryPicker open={pickerOpen} onOpenChange={setPickerOpen} onImported={() => void mutate()} />}
+            {status.github_app_created && <GitHubConnectionManager open={connectionManagerOpen} onOpenChange={setConnectionManagerOpen} onAddAccount={() => void connect()} onManageRepositories={() => setPickerOpen(true)} onChanged={() => void mutate()} />}
         </>
     )
 }

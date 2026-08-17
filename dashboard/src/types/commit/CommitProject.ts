@@ -26,4 +26,5 @@ export interface CommitProject{
 	path_to_folder?: string
 	/**	Description : Data	*/
 	description?: string
+	default_branch?: string
 }

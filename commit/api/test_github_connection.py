@@ -60,6 +60,36 @@ class TestGithubConnection(TestCase):
 
 		self.assertEqual([item["id"] for item in installations], ["111", "222"])
 
+	def test_connected_installations_are_serialized_for_frappe_json_field(self):
+		settings = MagicMock()
+		github_connection._store_connected_installations(
+			settings, [{"id": "111", "account": "acme"}]
+		)
+
+		self.assertEqual(
+			settings.installations, '[{"id": "111", "account": "acme"}]'
+		)
+
+	@patch("commit.api.github_connection.now_datetime", return_value="now")
+	def test_primary_installation_uses_latest_connected_account(self, _now_datetime):
+		settings = MagicMock()
+		github_connection._set_primary_installation(
+			settings,
+			[
+				{"id": "111", "account": "acme"},
+				{
+					"id": "222",
+					"account": "octocat",
+					"account_type": "User",
+					"repository_selection": "selected",
+				},
+			],
+		)
+
+		self.assertEqual(settings.installation_id, "222")
+		self.assertEqual(settings.installation_account, "octocat")
+		self.assertEqual(settings.connected_on, "now")
+
 	@patch("commit.intelligence.github.requests.post")
 	@patch("commit.intelligence.github.app_jwt", return_value="app-jwt")
 	@patch("commit.intelligence.github.frappe.get_single")

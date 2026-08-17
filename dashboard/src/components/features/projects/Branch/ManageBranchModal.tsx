@@ -15,11 +15,12 @@ export interface ManageBranchModalProps {
 const ManageBranchModal = ({ branches, mutate, setOpenManageModal }: ManageBranchModalProps) => {
 
     return (
-        <DialogContent className="p-6 w-[90vw] sm:max-w-[44vw] overflow-hidden">
-            <DialogHeader className="text-left">
-                <DialogTitle>Manage Branches</DialogTitle>
+        <DialogContent className="w-[94vw] max-w-4xl overflow-hidden p-0">
+            <DialogHeader className="border-b bg-muted/20 px-6 py-5 text-left">
+                <DialogTitle>Manage branches</DialogTitle>
+                <p className="text-sm text-muted-foreground">Refresh repository code, review intelligence, and control automatic scan frequency.</p>
             </DialogHeader>
-            <ul role="list" className="divide-y divide-gray-200 max-h-[60vh] overflow-y-scroll">
+            <ul role="list" className="max-h-[62vh] space-y-3 overflow-y-auto px-6 py-5">
                 {branches?.map((branch: CommitProjectBranch) => {
                     return (
                         <ManageBranchItem key={branch.name} branch={branch} mutate={mutate} />
@@ -27,7 +28,7 @@ const ManageBranchModal = ({ branches, mutate, setOpenManageModal }: ManageBranc
                 }
                 )}
             </ul>
-            <DialogFooter>
+            <DialogFooter className="border-t bg-muted/20 px-6 py-4">
                 <Button variant="outline" onClick={() => setOpenManageModal(false)}>
                     Close
                 </Button>

@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BrainCircuit, EllipsisVertical, RefreshCcw, Trash } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mutate: KeyedMutator<{ message: ProjectData[]; }> }) => {
     const { call, loading: syncLoading, reset: callReset } = useFrappePostCall<{ message: any }>('commit.commit.doctype.commit_project_branch.commit_project_branch.fetch_repo');
@@ -79,9 +80,9 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
     };
 
     return (
-        <li className="p-2 hover:shadow-sm flex justify-between items-center">
+        <li className="flex flex-col gap-4 rounded-xl border bg-background p-4 shadow-sm transition-colors hover:border-gray-300 md:flex-row md:items-center md:justify-between">
             <BranchInfo branch={branch} />
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap items-center gap-2">
                 {isSmallScreen ? (
                     <div className='flex gap-2'>
                         <FrequencyPopover
@@ -123,11 +124,12 @@ const ManageBranchItem = ({ branch, mutate }: { branch: CommitProjectBranch, mut
 };
 
 const BranchInfo = ({ branch }: { branch: CommitProjectBranch }) => (
-    <div className="flex flex-col items-start">
-        <span className="text-md font-medium">{branch.branch_name}</span>
-        <span className="text-xs text-gray-500">Last synced {convertFrappeTimestampToTimeAgo(branch.last_fetched)}</span>
+    <div className="min-w-0 flex flex-col items-start">
+        <div className="flex items-center gap-2"><span className="text-base font-semibold">{branch.branch_name}</span>{branch.scan_status && <Badge variant={branch.scan_status === 'Failed' ? 'destructive' : branch.scan_status === 'Completed' ? 'secondary' : 'outline'}>{branch.scan_status}</Badge>}</div>
+        <span className="mt-1 text-xs text-gray-500">Last synced {convertFrappeTimestampToTimeAgo(branch.last_fetched)}</span>
+        {branch.commit_hash && <code className="mt-1 text-[11px] text-muted-foreground">{branch.commit_hash.slice(0, 12)}</code>}
         {branch.scan_status && (
-            <span className="text-xs text-gray-500">Scan status: {branch.scan_status}</span>
+            <span className="sr-only">Scan status: {branch.scan_status}</span>
         )}
     </div>
 );
@@ -157,7 +159,7 @@ const FrequencyPopover = ({ open, setOpen, methods, onSubmit, control, frequency
     <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
             <Button
-                className="text-sm w-[14ch]"
+                className="min-w-32 text-sm"
                 variant="outline"
                 onClick={() => setOpen(true)}
                 size="sm"
@@ -202,7 +204,7 @@ const FrequencyPopover = ({ open, setOpen, methods, onSubmit, control, frequency
 const DeleteButton = ({ loading, onDelete }: { loading: boolean, onDelete: () => void }) => (
     <Button
         size="sm"
-        className="text-lg p-2"
+        className="h-9 w-9 p-0"
         variant="destructive"
         onClick={onDelete}
         disabled={loading}
@@ -228,7 +230,7 @@ const ActionDropdown = ({
     <DropdownMenu>
         <DropdownMenuTrigger>
             <Button
-                className="text-lg p-2"
+                className="h-9 w-9 p-0"
                 variant="outline"
                 size="sm"
                 aria-label="Actions"

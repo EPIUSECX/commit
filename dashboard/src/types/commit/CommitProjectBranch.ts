@@ -24,6 +24,13 @@ export interface CommitProjectBranch{
 	last_fetched?: string
 	scan_status?: "Queued" | "Running" | "Completed" | "Failed"
 	latest_scan_snapshot?: string
+	intelligence?: {
+		risk_score?: number
+		finding_count?: number
+		breaking_change_count?: number
+		component_count?: number
+		completed_on?: string
+	}
 	/**	Frequency : Select	*/
 	frequency?: "" | "Daily" | "Weekly" | "Monthly"
 	/**	Modules : Long Text	*/

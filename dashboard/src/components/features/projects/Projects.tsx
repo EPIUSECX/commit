@@ -61,7 +61,7 @@ const Projects = () => {
                             <div className="text-xl font-semibold pt-1">Projects</div>
                             {isCreateAccess && <AddMenuButton mutate={mutate} />}
                         </div>
-                        <div className="grid sm:grid-cols-2 gap-x-8 pb-4">
+                        <div className="grid gap-4 pb-4 sm:grid-cols-2 xl:grid-cols-3">
                             {data.message.map((org: ProjectData) => {
                                 const orgName = org.organization_name;
                                 return org.projects.map((project) => (
