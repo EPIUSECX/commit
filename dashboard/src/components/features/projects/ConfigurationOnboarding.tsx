@@ -19,6 +19,7 @@ type Status = {
     github_account?: string
     github_account_type?: string
     github_repository_selection?: string
+    github_installation_count?: number
     github_webhooks_enabled: boolean
     openai: boolean
     organizations: number
@@ -32,6 +33,7 @@ type Status = {
 
 type Repository = {
     id: number
+    installation_id: string
     name: string
     full_name: string
     owner: string
@@ -124,7 +126,7 @@ function RepositoryPicker({ open, onOpenChange, onImported }: { open: boolean, o
                 {error && <ErrorBanner error={error} />}
                 <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
                     {isLoading && <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading repositories…</div>}
-                    {!isLoading && repositories.length === 0 && <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No repositories are available to this installation. Add repository access in GitHub and try again.</div>}
+					{!isLoading && !error && repositories.length === 0 && <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No repositories are available to this installation. Add repository access in GitHub and try again.</div>}
                     {repositories.map(repository => {
                         const disabled = repository.imported || repository.archived
                         return (
@@ -237,7 +239,7 @@ export function ConfigurationOnboarding() {
                         <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-2 text-sm font-semibold">Connect GitHub{!status.github_connected && <Badge variant="secondary" className="font-medium">Required</Badge>}</span>
                             <span className="mt-1 block text-xs text-muted-foreground">
-                                {status.github_connected ? `${status.github_account} connected · ${status.github_repository_selection || "repository"} access` : status.github_app_created ? "GitHub App created. Finish installation and authorization." : "Create, install, and authorize a private GitHub App automatically."}
+                                {status.github_connected ? `${status.github_installation_count || 1} GitHub account${(status.github_installation_count || 1) === 1 ? "" : "s"} connected · ${status.github_repository_selection || "repository"} access` : status.github_app_created ? "GitHub App created. Finish installation and authorization." : "Create and authorize a GitHub App for your accounts and organizations."}
                             </span>
                             {!status.github_webhooks_enabled && status.github_connected && <span className="mt-1 block text-xs text-amber-700">Webhooks need a public HTTPS site; manual scans still work locally.</span>}
                             {!status.github_connected && !status.github_app_created && (
@@ -277,12 +279,18 @@ export function ConfigurationOnboarding() {
                                             </Command>
                                         </PopoverContent>
                                     </Popover>
-                                    <span className="mt-1.5 block text-[11px] leading-4 text-muted-foreground">Choose the organization that should own this private App, or use your personal account.</span>
+                                    <span className="mt-1.5 block text-[11px] leading-4 text-muted-foreground">Choose who should own the App. You can connect additional organizations after setup.</span>
                                 </span>
                             )}
                             <span className="mt-3 flex flex-wrap gap-2">
                                 {status.github_connected ? (
-                                    <Button size="sm" className="rounded-full px-4 shadow-sm" onClick={() => setPickerOpen(true)}>Manage repositories</Button>
+                                    <>
+                                        <Button size="sm" className="rounded-full px-4 shadow-sm" onClick={() => setPickerOpen(true)}>Manage repositories</Button>
+                                        <Button size="sm" variant="outline" className="rounded-full px-4" onClick={connect} disabled={connection.loading}>
+                                            {connection.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
+                                            Add GitHub account
+                                        </Button>
+                                    </>
                                 ) : (
                                     <Button size="sm" className="rounded-full px-4 shadow-sm" onClick={connect} disabled={connection.loading}>
                                         {connection.loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Github className="mr-2 h-4 w-4" />}

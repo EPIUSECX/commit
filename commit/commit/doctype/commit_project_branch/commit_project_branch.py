@@ -82,12 +82,14 @@ class CommitProjectBranch(Document):
     def clone_repo(self):
         project = frappe.get_cached_doc("Commit Project", self.project)
         self.app_name = project.app_name
-        github_org = frappe.db.get_value("Commit Organization", project.org, "github_org")
+        github_org, installation_id = frappe.db.get_value(
+            "Commit Organization", project.org, ["github_org", "github_installation_id"]
+        )
         repo_url = f"https://github.com/{github_org}/{project.repo_name}"
 
         folder_path = self.path_to_folder
 
-        with git_auth_environment() as env:
+        with git_auth_environment(installation_id) as env:
             clone_options = {"branch": self.branch_name, "single_branch": True}
             if env:
                 clone_options["env"] = env
@@ -98,7 +100,11 @@ class CommitProjectBranch(Document):
     def fetch_repo(self):
         previous_hash = self.commit_hash
         repo = git.Repo(self.path_to_folder)
-        with git_auth_environment() as env:
+        project = frappe.get_cached_doc("Commit Project", self.project)
+        installation_id = frappe.db.get_value(
+            "Commit Organization", project.org, "github_installation_id"
+        )
+        with git_auth_environment(installation_id) as env:
             fetch_options = {"env": env} if env else {}
             repo.remotes.origin.fetch(**fetch_options)
 

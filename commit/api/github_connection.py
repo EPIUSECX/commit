@@ -97,7 +97,9 @@ def build_manifest(state: str) -> dict[str, Any]:
 		"callback_urls": [_site_url("api/method/commit.api.github_connection.oauth_callback")],
 		"setup_url": _site_url("api/method/commit.api.github_connection.install_callback"),
 		"setup_on_update": True,
-		"public": False,
+		# Public controls who may install the App, not repository visibility. It is
+		# required for one Commit site to connect a personal account and multiple orgs.
+		"public": True,
 		"hook_attributes": {
 			"url": webhook_url if webhook_public else PLACEHOLDER_WEBHOOK_URL,
 			"active": webhook_public,
@@ -196,6 +198,7 @@ def manifest_callback(code: str | None = None, state: str | None = None):
 	settings.setup_source = "GitHub App Manifest"
 	settings.installation_id = None
 	settings.installation_account = None
+	settings.installations = []
 	settings.connected_on = None
 	settings.save(ignore_permissions=True)
 	if not settings.get_password("private_key", raise_exception=False):
@@ -280,6 +283,24 @@ def _user_installations(token: str) -> list[dict[str, Any]]:
 	return installations
 
 
+def _connected_installations(settings=None) -> list[dict[str, Any]]:
+	settings = settings or frappe.get_single("Github Settings")
+	items = frappe.parse_json(settings.installations) if settings.installations else []
+	items = items if isinstance(items, list) else []
+	if settings.installation_id and not any(
+		str(item.get("id")) == str(settings.installation_id) for item in items
+	):
+		items.append(
+			{
+				"id": str(settings.installation_id),
+				"account": settings.installation_account,
+				"account_type": settings.installation_account_type,
+				"repository_selection": settings.installation_repository_selection,
+			}
+		)
+	return [item for item in items if item.get("id")]
+
+
 @frappe.whitelist(allow_guest=True)
 def oauth_callback(code: str | None = None, state: str | None = None, error: str | None = None, **_kwargs):
 	payload = _consume_state(state, "oauth")
@@ -299,10 +320,23 @@ def oauth_callback(code: str | None = None, state: str | None = None, error: str
 	if str(installation.get("app_id")) != str(settings.github_app_id):
 		frappe.throw("The authorized installation belongs to a different GitHub App.", frappe.PermissionError)
 	account = installation.get("account") or {}
+	connected_installations = _connected_installations(settings)
+	connected_installations = [
+		item for item in connected_installations if str(item.get("id")) != installation_id
+	]
+	connected_installations.append(
+		{
+			"id": installation_id,
+			"account": account.get("login"),
+			"account_type": account.get("type"),
+			"repository_selection": installation.get("repository_selection"),
+		}
+	)
 	settings.installation_id = installation_id
 	settings.installation_account = account.get("login")
 	settings.installation_account_type = account.get("type")
 	settings.installation_repository_selection = installation.get("repository_selection")
+	settings.installations = connected_installations
 	settings.connected_on = now_datetime()
 	settings.webhook_enabled = is_public_https_url(
 		_site_url("api/method/commit.api.github_webhook.github_webhook")
@@ -343,10 +377,11 @@ def search_organizations(query: str):
 	]
 
 
-def _repo_summary(repo: dict[str, Any]) -> dict[str, Any]:
+def _repo_summary(repo: dict[str, Any], installation_id: str) -> dict[str, Any]:
 	owner = repo.get("owner") or {}
 	return {
 		"id": repo.get("id"),
+		"installation_id": installation_id,
 		"name": repo.get("name"),
 		"full_name": repo.get("full_name"),
 		"owner": owner.get("login"),
@@ -370,13 +405,54 @@ def _repo_summary(repo: dict[str, Any]) -> dict[str, Any]:
 def list_repositories():
 	frappe.only_for("System Manager")
 	repositories: list[dict[str, Any]] = []
-	for page in range(1, 11):
-		result = github_request("GET", f"/installation/repositories?per_page=100&page={page}")
-		batch = result.get("repositories", [])
-		repositories.extend(batch)
-		if len(batch) < 100:
-			break
-	return [_repo_summary(repo) for repo in repositories]
+	for installation in _connected_installations():
+		installation_id = str(installation["id"])
+		for page in range(1, 11):
+			result = github_request(
+				"GET",
+				f"/installation/repositories?per_page=100&page={page}",
+				installation_id=installation_id,
+			)
+			batch = result.get("repositories", [])
+			repositories.extend(
+				_repo_summary(repo, installation_id) for repo in batch
+			)
+			if len(batch) < 100:
+				break
+	return repositories
+
+
+@frappe.whitelist()
+def connection_health():
+	"""Verify installation credentials without exposing repository details."""
+	frappe.only_for("System Manager")
+	settings = frappe.get_single("Github Settings")
+	configured = {
+		"github_app_id": bool(settings.github_app_id),
+		"installation_id": bool(settings.installation_id),
+		"private_key": bool(settings.get_password("private_key", raise_exception=False)),
+	}
+	if not all(configured.values()):
+		return {
+			"connected": False,
+			"account": settings.installation_account,
+			"configuration": configured,
+		}
+	installations = _connected_installations(settings)
+	counts = []
+	for installation in installations:
+		result = github_request(
+			"GET",
+			"/installation/repositories?per_page=1",
+			installation_id=str(installation["id"]),
+		)
+		counts.append(result.get("total_count", len(result.get("repositories", []))))
+	return {
+		"connected": True,
+		"account": settings.installation_account,
+		"installation_count": len(installations),
+		"repository_count": sum(counts),
+	}
 
 
 def _selected_repositories(repository_ids: list[int]) -> list[dict[str, Any]]:
@@ -385,11 +461,22 @@ def _selected_repositories(repository_ids: list[int]) -> list[dict[str, Any]]:
 	except (TypeError, ValueError):
 		frappe.throw("Repository IDs must be numeric.")
 	available: list[dict[str, Any]] = []
-	for page in range(1, 11):
-		result = github_request("GET", f"/installation/repositories?per_page=100&page={page}")
-		batch = result.get("repositories", [])
-		available.extend(repo for repo in batch if int(repo.get("id") or 0) in wanted)
-		if len(batch) < 100 or len(available) == len(wanted):
+	for installation in _connected_installations():
+		installation_id = str(installation["id"])
+		for page in range(1, 11):
+			result = github_request(
+				"GET",
+				f"/installation/repositories?per_page=100&page={page}",
+				installation_id=installation_id,
+			)
+			batch = result.get("repositories", [])
+			for repo in batch:
+				if int(repo.get("id") or 0) in wanted:
+					repo["installation_id"] = installation_id
+					available.append(repo)
+			if len(batch) < 100 or len(available) == len(wanted):
+				break
+		if len(available) == len(wanted):
 			break
 	if {int(repo["id"]) for repo in available} != wanted:
 		frappe.throw("One or more selected repositories are not accessible to this installation.")
@@ -401,7 +488,11 @@ def _discover_app_name(repo: dict[str, Any]) -> str:
 	name = repo.get("name")
 	for path in ("pyproject.toml", "setup.py"):
 		try:
-			content = github_request("GET", f"/repos/{owner}/{name}/contents/{path}")
+			content = github_request(
+				"GET",
+				f"/repos/{owner}/{name}/contents/{path}",
+				installation_id=repo.get("installation_id"),
+			)
 		except requests.HTTPError as exc:
 			if exc.response is not None and exc.response.status_code == 404:
 				continue
@@ -439,8 +530,16 @@ def import_repositories(repository_ids: str | list[int]):
 					"github_org": owner_login,
 					"image": owner.get("avatar_url"),
 					"about": f"Imported from GitHub ({owner.get('type') or 'account'})",
+					"github_installation_id": repo.get("installation_id"),
 				}
 			).insert()
+		else:
+			frappe.db.set_value(
+				"Commit Organization",
+				owner_login,
+				"github_installation_id",
+				repo.get("installation_id"),
+			)
 		project_name = frappe.db.exists(
 			"Commit Project", {"org": owner_login, "repo_name": repo["name"]}
 		)

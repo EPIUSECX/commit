@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import frappe
 
+from commit.api.github_connection import _connected_installations
+
 
 def _single_has_value(doctype: str, fields: tuple[str, ...]) -> bool:
 	return any(bool(frappe.db.get_single_value(doctype, field)) for field in fields)
@@ -30,6 +32,7 @@ def get_status():
 		"github_account": github_settings.installation_account,
 		"github_account_type": github_settings.installation_account_type,
 		"github_repository_selection": github_settings.installation_repository_selection,
+		"github_installation_count": len(_connected_installations(github_settings)),
 		"github_webhooks_enabled": bool(github_settings.webhook_enabled),
 		"commit_settings": True,
 		"openai": _single_has_value("Open AI Settings", ("api_key",)),

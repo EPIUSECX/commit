@@ -22,6 +22,7 @@
   "installation_account",
   "installation_account_type",
   "installation_repository_selection",
+  "installations",
   "connected_on",
   "setup_source",
   "private_key",
@@ -121,6 +122,13 @@
    "fieldname": "installation_repository_selection",
    "fieldtype": "Data",
    "label": "Repository Selection",
+   "read_only": 1
+  },
+  {
+   "description": "Verified GitHub App installations available to this Commit site",
+   "fieldname": "installations",
+   "fieldtype": "JSON",
+   "label": "Connected Installations",
    "read_only": 1
   },
   {
